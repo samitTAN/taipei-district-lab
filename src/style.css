@@ -929,3 +929,57 @@ aside {
     flex-wrap: wrap;
   }
 }
+.legal-panel {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  margin-top: 12px;
+  padding: 11px;
+  background: #fbfcf7;
+}
+.legal-toggle {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 11px;
+  cursor: pointer;
+}
+.legal-toggle input {
+  margin-top: 3px;
+  accent-color: var(--green);
+}
+#legal-options > p {
+  font-size: 10px;
+  margin: 9px 0;
+}
+#legal-date-options .field {
+  margin: 9px 0;
+}
+#legal-summary {
+  font-weight: 650;
+  color: var(--ink);
+}
+.legal-item {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.legal-item strong {
+  font-size: 11px;
+}
+.legal-item p,
+.legal-item a {
+  font-size: 10px;
+  line-height: 1.8;
+}
+.legal-item a {
+  color: var(--green);
+}
+.legal-issue strong {
+  color: #9a4939;
+}
+.legal-review strong,
+.legal-unknown strong {
+  color: #8c6c30;
+}
+#legal-version {
+  color: var(--muted);
+}

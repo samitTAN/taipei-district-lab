@@ -41,6 +41,9 @@ class Element {
   getBoundingClientRect() {
     return { width: 760 };
   }
+  checkValidity() {
+    return true;
+  }
   showModal() {}
   close() {}
 }
@@ -72,6 +75,7 @@ let copied = "";
 const apiMode = process.argv.includes("--api");
 const catalog = JSON.parse(fs.readFileSync("dist/taipei-villages.json"));
 const results = JSON.parse(fs.readFileSync("dist/elections/2022-council.json"));
+const rules = JSON.parse(fs.readFileSync("dist/legal-rules.json"));
 const ctx = vm.createContext({
   DISTRICT_API: apiMode ? "/api" : "",
   document: doc,
@@ -82,9 +86,11 @@ const ctx = vm.createContext({
       json: async () =>
         options
           ? { plan: JSON.parse(options.body) }
-          : url.includes("elections/")
-            ? results
-            : catalog,
+          : url.includes("legal")
+            ? rules
+            : url.includes("elections/")
+              ? results
+              : catalog,
     };
   },
   location: { origin: "https://example.test", pathname: "/", hash: "" },
@@ -117,6 +123,7 @@ setImmediate(async () => {
       apiMode
         ? "/api/elections/2022-taipei-council-regional"
         : "./elections/2022-council.json",
+      apiMode ? "/api/legal/rules" : "./legal-rules.json",
     ]);
     assert.equal(run("Object.keys(electionData.stations).length"), 1755);
     els["station-number"].value = "1";
@@ -137,6 +144,44 @@ setImmediate(async () => {
     );
     els["election-download"].click();
     assert.ok(run("exportedCSV.content").includes("候選人"));
+    assert.equal(run("legalRules.id"), rules.id);
+    run("state.assignments={...baseline};state.count=6");
+    els["legal-enabled"].checked = true;
+    els["legal-enabled"].onchange();
+    assert.equal(els["legal-options"].hidden, false);
+    assert.ok(els["legal-summary"].textContent.includes("仍待審議"));
+    let report = run(
+      "legalReport(state,{check_deadline:false,election_year:2030})",
+    );
+    assert.equal(report.legal_compliance_assessed, false);
+    assert.equal(
+      report.items.find((i) => i.id === "population").status,
+      "unknown",
+    );
+    els["legal-deadline"].checked = true;
+    els["legal-year"].value = "2026";
+    els["legal-publication"].value = "2026-10-24";
+    els["legal-deadline"].onchange();
+    assert.ok(els["legal-summary"].textContent.includes("期限問題"));
+    report = run(
+      "legalReport(state,{check_deadline:true,election_year:2026,publication_date:'2025-12-25'})",
+    );
+    assert.equal(
+      report.items.find((i) => i.id === "deadline").status,
+      "checked",
+    );
+    run("state.assignments[unitIds[0]]=2");
+    report = run(
+      "legalReport(state,{check_deadline:false,election_year:2030})",
+    );
+    assert.equal(
+      report.items.find((i) => i.id === "administrative").status,
+      "review",
+    );
+    run("state.assignments={...baseline}");
+    els["legal-enabled"].checked = false;
+    els["legal-enabled"].onchange();
+    assert.equal(els["legal-options"].hidden, true);
     assert.equal(run("components(unitIds)"), 1);
     assert.equal(run("state.version"), 2);
     const first = run("unitIds[0]");

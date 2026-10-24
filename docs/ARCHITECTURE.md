@@ -77,3 +77,7 @@ v2 JSON 使用 version=2、unit=village，新增 dataset_version；assignments �
 backend/elections.py 載入已核對的公開歷史結果並組合單里／單所回應；資料缺失不影響里界 API。前端於地圖載入後另外讀取選舉結果，失敗時保留地圖重劃功能。查詢 API 及分母、版本與地址限制見 ELECTIONS.md。
 
 點里、搜尋定位或開始一筆塗選會選取對應里；拖曳後續筆畫不反覆改變查詢。里／所結果另置於地圖下方，不混入草案的分配狀態。CSV 匯出只包含目前里／所的公共候選人得票與原選區當選標記。
+
+## 法規初檢（0.5.0）
+
+backend/legal.py 接受 v1／v2 草案與可選的公告日期情境；GET /api/legal/rules 與 POST /api/legal/check 提供共用規則及結構化結果。前端在開啟選項後即時計算；修改方案、復原或重做均更新報告，不把報告狀態寫入方案格式。限制與來源見 LEGAL.md。

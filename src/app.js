@@ -212,6 +212,7 @@ function membersFor(i, a) {
   return unitIds.filter((n) => a[n] === i);
 }
 function render() {
+  if (legalRules && unitIds.length) renderLegal();
   if (unitIds.length) searchVillages();
   let editing = mode === "edit",
     a = editing ? state.assignments : baseline,
@@ -498,7 +499,7 @@ async function init() {
     }
     render();
     searchVillages();
-    await initElections();
+    await Promise.all([initElections(), initLegal()]);
   } catch (e) {
     $("map-hint").textContent = "圖資載入失敗，請重新整理";
     toast(e.message);
@@ -985,4 +986,153 @@ $("election-download").onclick = () => {
     `2022-council-${electionStation || electionVillage}.csv`,
   );
 };
+
+let legalRules = null;
+async function initLegal() {
+  try {
+    const response = await fetch(
+      API ? `${API}/legal/rules` : "./legal-rules.json",
+    );
+    if (!response.ok) throw Error("法規資料載入失敗");
+    legalRules = await response.json();
+    if (!Array.isArray(legalRules.items) || !legalRules.sources)
+      throw Error("法規資料格式不符");
+    renderLegal();
+  } catch (error) {
+    $("legal-enabled").disabled = true;
+    $("legal-options").hidden = false;
+    $("legal-summary").textContent = error.message;
+  }
+}
+function legalReport(plan, options) {
+  const split = names
+    .filter(
+      (town) =>
+        new Set(
+          unitIds
+            .filter((id) => units.get(id).town === town)
+            .map((id) => plan.assignments[id])
+            .filter(Boolean),
+        ).size > 1,
+    )
+    .sort();
+  const unassigned = unitIds.filter((id) => !plan.assignments[id]),
+    empty = [],
+    disconnected = [];
+  for (let i = 1; i <= plan.count; i++) {
+    const members = membersFor(i, plan.assignments);
+    if (!members.length) empty.push(i);
+    if (components(members) > 1) disconnected.push(i);
+  }
+  const deadline = options.check_deadline
+    ? `${options.election_year - 1}-12-25`
+    : null;
+  const late = options.check_deadline && options.publication_date > deadline;
+  const statuses = {
+    coverage: unassigned.length || empty.length ? "issue" : "checked",
+    administrative: split.length ? "review" : "checked",
+    connectivity: disconnected.length ? "review" : "checked",
+    population: "unknown",
+    seats: "unknown",
+    deadline: late
+      ? "issue"
+      : options.check_deadline
+        ? "checked"
+        : "not_checked",
+    authority: "review",
+  };
+  return {
+    ruleset: legalRules.id,
+    checked_on: legalRules.checked_on,
+    legal_compliance_assessed: false,
+    conclusion: Object.values(statuses).includes("issue")
+      ? "issues_found"
+      : "requires_review",
+    items: legalRules.items.map((item) => ({
+      ...item,
+      status: statuses[item.id],
+      source: legalRules.sources[item.source],
+    })),
+    facts: {
+      unassigned_count: unassigned.length,
+      empty_districts: empty,
+      split_towns: split,
+      disconnected_districts: disconnected,
+      deadline,
+      publication_date: options.check_deadline
+        ? options.publication_date
+        : null,
+      term_end: options.check_deadline
+        ? `${options.election_year}-12-25`
+        : null,
+    },
+    limitations: legalRules.limitations,
+  };
+}
+function renderLegal() {
+  const enabled = $("legal-enabled").checked;
+  $("legal-options").hidden = !enabled;
+  $("legal-date-options").hidden = !$("legal-deadline").checked;
+  if (!enabled || !legalRules) return;
+  const options = {
+    check_deadline: !!$("legal-deadline").checked,
+    election_year: Number($("legal-year").value || 2030),
+    publication_date: $("legal-publication").value,
+  };
+  $("legal-results").replaceChildren();
+  if (
+    options.check_deadline &&
+    (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(options.publication_date) ||
+      !$("legal-publication").checkValidity())
+  ) {
+    $("legal-summary").textContent = "請填寫有效擬公告日期，日期尚未檢查。";
+    return;
+  }
+  const report = legalReport(state, options),
+    facts = report.facts;
+  $("legal-summary").textContent =
+    report.conclusion === "issues_found"
+      ? "發現草案或期限問題；仍有項目無法判定。"
+      : "已完成可自動項目；整體合法性仍待審議。";
+  const labels = {
+    checked: "已檢查",
+    issue: "有問題",
+    review: "待審議",
+    unknown: "缺資料",
+    not_checked: "未選用",
+  };
+  for (const item of report.items) {
+    const block = document.createElement("div");
+    block.className = "legal-item legal-" + item.status;
+    const title = document.createElement("strong");
+    title.textContent = `${labels[item.status]} · ${item.title}`;
+    const note = document.createElement("p");
+    note.textContent = item.note;
+    const detail = document.createElement("p");
+    if (item.id === "coverage")
+      detail.textContent = `未分配 ${facts.unassigned_count} 里；空選區 ${facts.empty_districts.join("、") || "無"}。`;
+    if (item.id === "administrative")
+      detail.textContent = `分屬不同選區的行政區：${facts.split_towns.join("、") || "無"}。`;
+    if (item.id === "connectivity")
+      detail.textContent = `共邊未相連選區：${facts.disconnected_districts.join("、") || "無"}。`;
+    if (item.id === "deadline" && facts.deadline)
+      detail.textContent = `情境任期屆滿 ${facts.term_end}，變更公告期限 ${facts.deadline}；擬公告 ${facts.publication_date}${item.status === "issue" ? "，已晚於期限" : "，未晚於期限"}。`;
+    const link = document.createElement("a");
+    link.href = item.source.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = item.source.title + " ↗";
+    block.append(title, detail, note, link);
+    $("legal-results").append(block);
+  }
+  $("legal-version").textContent =
+    `法規核對：${report.checked_on}。${report.limitations}`;
+}
+for (const id of [
+  "legal-enabled",
+  "legal-deadline",
+  "legal-year",
+  "legal-publication",
+])
+  $(id).onchange = renderLegal;
 init();

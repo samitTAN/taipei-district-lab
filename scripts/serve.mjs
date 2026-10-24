@@ -16,6 +16,7 @@ const allowed = new Set([
   "style.css",
   "taipei.json",
   "taipei-villages.json",
+  "legal-rules.json",
   "elections/2022-council.json",
   "elections/2022-council-source.json",
 ]);

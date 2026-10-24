@@ -1,0 +1,22 @@
+{
+  "id": "tw-taipei-council-20261024",
+  "checked_on": "2026-10-24",
+  "scope": "臺北市區域議員選區初檢",
+  "sources": {
+    "districts": {"title":"公職人員選舉罷免法第36條","url":"https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=D0020010#lawmenu"},
+    "delimitation": {"title":"公職人員選舉罷免法第37條","url":"https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=D0020010&flno=37"},
+    "population_date": {"title":"公職人員選舉罷免法第38條第2項","url":"https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=D0020010&flno=38"},
+    "seats": {"title":"地方制度法第33條","url":"https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=A0040003&flno=33"},
+    "organization": {"title":"地方立法機關組織準則第5條","url":"https://laws.gov.taipei/Law/LawSearch/LawArticleContent/FL001122"}
+  },
+  "items": [
+    {"id":"coverage","title":"草案完整性","source":"districts","note":"未分配里或空選區是工具檢出的草案問題，不等於主管機關已認定違法。"},
+    {"id":"administrative","title":"行政區分割","source":"delimitation","note":"行政區域是法定考量因素之一；分割行政區會提示審議需求，不自動判為違法。"},
+    {"id":"connectivity","title":"地理連通與交通","source":"delimitation","note":"共邊檢查只提供幾何資訊；交通、河川橋梁與歷史淵源仍需審議，不將幾何結果直接當成法律結論。"},
+    {"id":"population","title":"戶籍人口與統計基準","source":"population_date","note":"未接入法定基準月份戶籍人口及原住民人口扣除資料，無法檢查人口與席次。2022 選舉人數不能代替戶籍人口。"},
+    {"id":"seats","title":"名額與適用屆次","source":"organization","note":"草案沒有各選區應選名額，不能驗證名額分配或保障規則；2030 年就職起的新性別保障規定須與舊制區分。"},
+    {"id":"deadline","title":"選區變更公告期限","source":"delimitation","note":"只在你指定為選區變更案時，按所選任期屆滿日前一年計算。此為日期情境檢查，未驗證正式公告與特殊程序。"},
+    {"id":"authority","title":"主管機關劃分與公告程序","source":"delimitation","note":"直轄市議員選區由中選會劃分及依法公告；公民草案或本工具的檢查不取代正式程序。"}
+  ],
+  "limitations": "此為可選的法規初檢，沒有整體合法認定。未設定議員人口差距 ±15% 門檻，也未將里不可分割或共邊連通當成獨立法定硬條件。"
+}

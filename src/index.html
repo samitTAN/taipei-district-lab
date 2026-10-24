@@ -133,6 +133,36 @@
               ><button id="remove">移除末選區</button>
             </div>
             <div class="checks" id="checks"></div>
+            <section class="legal-panel" aria-label="法規初檢">
+              <label class="legal-toggle"
+                ><input id="legal-enabled" type="checkbox" />
+                啟用法規檢查（初檢）</label
+              >
+              <div id="legal-options" hidden>
+                <p>列出可檢查項目與待補資料，不直接認定整體合法。</p>
+                <label class="legal-toggle"
+                  ><input id="legal-deadline" type="checkbox" />
+                  另以「選區變更案」檢查公告期限</label
+                >
+                <div id="legal-date-options" hidden>
+                  <label class="field"
+                    >目標屆次情境<select id="legal-year">
+                      <option value="2030">2030（規劃情境）</option>
+                      <option value="2026">2026</option>
+                    </select></label
+                  >
+                  <label class="field"
+                    >擬公告日期<input
+                      id="legal-publication"
+                      type="date"
+                      value="2026-10-24"
+                  /></label>
+                </div>
+                <p id="legal-summary" role="status" aria-live="polite"></p>
+                <div id="legal-results"></div>
+                <p id="legal-version"></p>
+              </div>
+            </section>
             <div class="action-grid">
               <button id="save" class="primary">儲存到此瀏覽器</button
               ><button id="load">載入已存方案</button

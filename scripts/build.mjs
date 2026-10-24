@@ -24,3 +24,8 @@ console.log("Built village editor in dist/.");
 await cp(resolve(root, "data/elections"), resolve(root, "dist/elections"), {
   recursive: true,
 });
+
+await cp(
+  resolve(root, "data/legal-rules.json"),
+  resolve(root, "dist/legal-rules.json"),
+);

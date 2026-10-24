@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
+from backend.legal import LegalRequest, legal_report
 from backend.elections import load_election, detail
 
 from backend.domain import BASELINE, NAMES, SEATS, Plan, adjacency, check_plan, VillagePlan, village_catalog, migrate_plan, check_village_plan
@@ -21,7 +22,7 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
     election_path = election_path or ROOT / "data/elections/2022-council.json"
     app = FastAPI(
         title="Taipei District Lab API",
-        version="0.4.0",
+        version="0.5.0",
         description="台北市逐里選區探索，方案檢查非法律合規認定。",
     )
 
@@ -58,7 +59,7 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
 
     @app.get("/api/health", tags=["system"])
     def health():
-        return {"status": "ok", "version": "0.4.0"}
+        return {"status": "ok", "version": "0.5.0"}
 
     @app.get("/api/ready", tags=["system"])
     def ready():
@@ -127,6 +128,20 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
         if station_id not in data["stations"]:
             raise HTTPException(404, "Unknown station")
         return detail(data, data["stations"][station_id])
+
+    @app.get("/api/legal/rules", tags=["legal"])
+    def legal_rules():
+        try:
+            return json.loads((ROOT / "data/legal-rules.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise HTTPException(503, "Legal rules unavailable") from None
+
+    @app.post("/api/legal/check", tags=["legal"])
+    def legal_check(request: LegalRequest):
+        try:
+            return legal_report(request, villages(), legal_rules())
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def index():
