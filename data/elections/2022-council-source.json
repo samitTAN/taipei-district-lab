@@ -1,0 +1,60 @@
+{
+  "id": "2022-taipei-council-regional",
+  "publisher": "中央選舉委員會",
+  "title": "2022 臺北市第14屆區域議員選舉",
+  "date": "2022-11-26",
+  "scope": "regional-only; indigenous constituency ballots excluded",
+  "url": "https://data.cec.gov.tw/%E9%81%B8%E8%88%89%E8%B3%87%E6%96%99%E5%BA%AB/votedata.zip",
+  "catalog": "https://data.gov.tw/dataset/13119",
+  "sha256": "84740535b1f4a9a8fec8ebfe8f7577889837b7639cd7f5e40ef8826c6ab2f69a",
+  "members": {
+    "elbase.csv": {
+      "path": "votedata/votedata/voteData/2022-111年地方公職人員選舉/T1/prv/elbase.csv",
+      "sha256": "8320dd2af356191191e3eff5c27bceb7219b8432ef439d33e8215ec01f1b56ec"
+    },
+    "elcand.csv": {
+      "path": "votedata/votedata/voteData/2022-111年地方公職人員選舉/T1/prv/elcand.csv",
+      "sha256": "af38d1e0ca691d9e353fcfb3e154f0cbe1f178d6e796ce7441ef7cb52d02f1b9"
+    },
+    "elctks.csv": {
+      "path": "votedata/votedata/voteData/2022-111年地方公職人員選舉/T1/prv/elctks.csv",
+      "sha256": "134e4feb6da9d66dab56c3cec2c6b810352f56a65c46bb2aceb06c5d86b1ac94"
+    },
+    "elpaty.csv": {
+      "path": "votedata/votedata/voteData/2022-111年地方公職人員選舉/T1/prv/elpaty.csv",
+      "sha256": "dbac0a5a34b059816837625691c77201d0ea6281487ab6be9556c48d94fe743c"
+    },
+    "elprof.csv": {
+      "path": "votedata/votedata/voteData/2022-111年地方公職人員選舉/T1/prv/elprof.csv",
+      "sha256": "e6e22a1aa435b4ee6f31b0704693da6e97177e655a74fd2b7f7f6f6227ce6f64"
+    }
+  },
+  "locations": {
+    "url": "https://web.cec.gov.tw/api/file/1e398739-e512-4f1a-88cb-fcb7712a7da6.pdf",
+    "announcement": "https://web.cec.gov.tw/mect/article/46783",
+    "announcement_date": "2022-08-29",
+    "sha256": "1543ec510c5fff46405dfbf5252b9940e006a6b7d03d5bbf39b71b32fc7f6d5d",
+    "note": "Place names and addresses from the dated announcement, not geocoded; do not treat as polling-site boundaries."
+  },
+  "license": "OGDL-Taiwan-1.0",
+  "license_url": "https://data.gov.tw/license",
+  "checked_on": "2026-10-24",
+  "village_join": "2022 official town + village names matched to official map; no direct code equivalence assumed",
+  "normalizations": [
+    {
+      "town": "萬華區",
+      "election_raw": "糖里",
+      "map_raw": "糖蔀里",
+      "display": "糖廍里",
+      "reference": "https://whdo.gov.taipei/News_Content.aspx?n=398B18EC2B34D6FC&s=1E6DF91952ACD47B",
+      "method": "Explicit reviewed alias; join to existing official map ID, do not change geometry"
+    },
+    {
+      "station_ids": [
+        "0957",
+        "1036"
+      ],
+      "method": "PDF town cells blank; town taken from election results for the same station IDs; place name and address unchanged"
+    }
+  ]
+}

@@ -71,6 +71,7 @@ const storage = new Map(),
 let copied = "";
 const apiMode = process.argv.includes("--api");
 const catalog = JSON.parse(fs.readFileSync("dist/taipei-villages.json"));
+const results = JSON.parse(fs.readFileSync("dist/elections/2022-council.json"));
 const ctx = vm.createContext({
   DISTRICT_API: apiMode ? "/api" : "",
   document: doc,
@@ -79,7 +80,11 @@ const ctx = vm.createContext({
     return {
       ok: true,
       json: async () =>
-        options ? { plan: JSON.parse(options.body) } : catalog,
+        options
+          ? { plan: JSON.parse(options.body) }
+          : url.includes("elections/")
+            ? results
+            : catalog,
     };
   },
   location: { origin: "https://example.test", pathname: "/", hash: "" },
@@ -109,7 +114,29 @@ setImmediate(async () => {
     assert.equal(doc.querySelectorAll("path").length, 456);
     assert.deepEqual(requests, [
       apiMode ? "/api/villages/geometry" : "./taipei-villages.json",
+      apiMode
+        ? "/api/elections/2022-taipei-council-regional"
+        : "./elections/2022-council.json",
     ]);
+    assert.equal(run("Object.keys(electionData.stations).length"), 1755);
+    els["station-number"].value = "1";
+    els["find-station"].click();
+    assert.equal(run("electionStation"), "0001");
+    assert.ok(els["station-address"].textContent.includes("文林北路77號"));
+    assert.ok(els["election-location"].textContent.includes("0001"));
+    assert.equal(els["election-rows"].children.length, 25);
+    const stationVillage = run("electionVillage");
+    els["election-station"].value = "";
+    els["election-station"].onchange({ target: { value: "" } });
+    assert.equal(
+      run("electionRecord().valid"),
+      results.villages[stationVillage].valid,
+    );
+    run(
+      "download=(content,type,name)=>globalThis.exportedCSV={content,type,name}",
+    );
+    els["election-download"].click();
+    assert.ok(run("exportedCSV.content").includes("候選人"));
     assert.equal(run("components(unitIds)"), 1);
     assert.equal(run("state.version"), 2);
     const first = run("unitIds[0]");
@@ -126,9 +153,11 @@ setImmediate(async () => {
     run(
       "state.assignments={...baseline};history=[];future=[];selected=12;erase=false",
     );
-    run(`startStroke({button:0,pointerId:1,clientX:0,clientY:0,preventDefault(){}},'${first}')`);
-    doc.elementFromPoint = () => ({dataset:{name:second}});
-    els.map.onpointermove({pointerId:1,clientX:1,clientY:1});
+    run(
+      `startStroke({button:0,pointerId:1,clientX:0,clientY:0,preventDefault(){}},'${first}')`,
+    );
+    doc.elementFromPoint = () => ({ dataset: { name: second } });
+    els.map.onpointermove({ pointerId: 1, clientX: 1, clientY: 1 });
     els.map.onpointerup();
     assert.equal(run("history.length"), 1);
     assert.equal(run(`state.assignments['${second}']`), 12);

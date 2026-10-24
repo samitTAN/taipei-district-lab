@@ -348,6 +348,7 @@ function render() {
   }
 }
 function activate(n) {
+  selectElectionVillage(n);
   if (mode === "current") {
     highlight = baseline[n];
     render();
@@ -377,7 +378,16 @@ async function init() {
     geo = await response.json();
     if (geo.features.length !== 456 || !geo.dataset_version)
       throw Error("里界資料不完整");
-    units = new Map(geo.features.map((f) => [f.properties.id, f.properties]));
+    units = new Map(
+      geo.features.map((f) => [
+        f.properties.id,
+        {
+          ...f.properties,
+          village: f.properties.village.replace("糖蔀里", "糖廍里"),
+          label: f.properties.label.replace("糖蔀里", "糖廍里"),
+        },
+      ]),
+    );
     unitIds = [...units.keys()].sort();
     baseline = Object.fromEntries(
       unitIds.map((id) => [id, districtBaseline[units.get(id).town]]),
@@ -488,6 +498,7 @@ async function init() {
     }
     render();
     searchVillages();
+    await initElections();
   } catch (e) {
     $("map-hint").textContent = "圖資載入失敗，請重新整理";
     toast(e.message);
@@ -526,6 +537,7 @@ function startStroke(e, id) {
   };
   $("map").setPointerCapture(e.pointerId);
   if (moveTool) return;
+  selectElectionVillage(id);
   if (mode === "current") {
     activate(id);
     stroke = null;
@@ -562,6 +574,7 @@ $("move-tool").onclick = () => {
   render();
 };
 function focusVillage(id) {
+  selectElectionVillage(id);
   const [x, y] = projectPoint(units.get(id).center);
   zoom = 6;
   panX = (380 - x) * zoom;
@@ -781,7 +794,195 @@ $("about").onclick = () =>
   );
 $("sources").onclick = () =>
   showDialog(
-    "官方里界與版本",
-    '<p>圖資來源：臺北市政府民政局「臺北市里界圖」，456 里。下載資源更新日期 2026-09-21，頁面標示收錄期間迄日 2025-06-17；更新日期不等於每條邊界的生效日。</p><p>原始 SHP 為 EPSG:3826，轉為 WGS84，未簡化邊界。里代碼採原始 CPTVID；鄰接以原始圖形共邊超過 0.1 公尺判斷，僅點接觸不計。河川／橋梁交通可達性不在此幾何檢查內。</p><p><a href="https://data.taipei/dataset/detail?id=6b17b31d-4e16-495e-95b1-9fd1f47c80d8" target="_blank" rel="noreferrer">官方里界來源 ↗</a> · <a href="https://data.gov.tw/dataset/121163" target="_blank" rel="noreferrer">政府資料目錄與開放授權 ↗</a></p><p>六個區域選區配置與應選席次仍採第 14 屆（2022–2026）基準，未代表 2026 年第 15 屆選務公告；第 7、8 選區為全市平地、山地原住民，各 1 席。</p><p>圖資依政府資料開放授權條款第 1 版使用，已轉換座標與附加鄰接資料。人口、每席代表人口與法規合規審查尚未接入。</p>',
+    "圖資與選舉資料版本",
+    '<p>圖資來源：臺北市政府民政局「臺北市里界圖」，456 里。下載資源更新日期 2026-09-21，頁面標示收錄期間迄日 2025-06-17；更新日期不等於每條邊界的生效日。</p><p>原始 SHP 為 EPSG:3826，轉為 WGS84，未簡化邊界。里代碼採原始 CPTVID；鄰接以原始圖形共邊超過 0.1 公尺判斷，僅點接觸不計。河川／橋梁交通可達性不在此幾何檢查內。</p><p><a href="https://data.taipei/dataset/detail?id=6b17b31d-4e16-495e-95b1-9fd1f47c80d8" target="_blank" rel="noreferrer">官方里界來源 ↗</a> · <a href="https://data.gov.tw/dataset/121163" target="_blank" rel="noreferrer">政府資料目錄與開放授權 ↗</a></p><p>另提供 2022 區域議員選舉的里與投開票所結果，來源為中選會開放資料；所號對應場所及地址依 2022-08-29 公告。詳見地圖下方開票結果面板的來源連結與口徑。</p><p>六個區域選區配置與應選席次仍採第 14 屆（2022–2026）基準，未代表 2026 年第 15 屆選務公告；第 7、8 選區為全市平地、山地原住民，各 1 席。</p><p>圖資依政府資料開放授權條款第 1 版使用，已轉換座標與附加鄰接資料。人口、每席代表人口與法規合規審查尚未接入。</p>',
   );
+
+let electionData = null,
+  electionVillage = null,
+  electionStation = "";
+const numberText = (value) => value.toLocaleString("zh-TW");
+async function initElections() {
+  try {
+    const response = await fetch(
+      API
+        ? `${API}/elections/2022-taipei-council-regional`
+        : "./elections/2022-council.json",
+    );
+    if (!response.ok) throw Error("選舉資料載入失敗");
+    const data = await response.json();
+    if (
+      data.map_dataset_version !== geo.dataset_version ||
+      Object.keys(data.villages).length !== 456 ||
+      Object.keys(data.stations).length !== 1755 ||
+      !unitIds.every((id) => data.villages[id])
+    )
+      throw Error("選舉資料與地圖版本不符");
+    electionData = data;
+    $("election-village").replaceChildren();
+    for (const id of unitIds) {
+      const v = data.villages[id],
+        option = document.createElement("option");
+      option.value = id;
+      option.textContent = v.town + v.village;
+      $("election-village").append(option);
+    }
+    $("election-village").disabled = false;
+    $("election-station").disabled = false;
+    selectElectionVillage(electionVillage || unitIds[0]);
+  } catch (error) {
+    $("election-status").textContent =
+      error.message + "，請重新整理後再試；地圖仍可重劃。";
+    $("election-download").disabled = true;
+  }
+}
+function selectElectionVillage(id) {
+  electionVillage = id;
+  electionStation = "";
+  if (!electionData || !electionData.villages[id]) return;
+  $("election-village").value = id;
+  $("view-election").textContent = `查看${units.get(id).label}的 2022 得票 ↓`;
+  $("election-station").replaceChildren();
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = "全里合計";
+  $("election-station").append(all);
+  for (const sid of electionData.villages[id].station_ids) {
+    const option = document.createElement("option");
+    option.value = sid;
+    option.textContent = `第 ${sid} 所 · ${electionData.stations[sid].location.name}`;
+    $("election-station").append(option);
+  }
+  $("election-station").value = "";
+  renderElection();
+}
+function electionRecord() {
+  if (!electionData || !electionVillage) return null;
+  return electionStation
+    ? electionData.stations[electionStation]
+    : electionData.villages[electionVillage];
+}
+function renderElection() {
+  const record = electionRecord();
+  if (!record) return;
+  const village = electionData.villages[electionVillage],
+    label = village.town + village.village;
+  $("election-status").textContent =
+    `投票日 2022-11-26 · 原第 ${record.district} 選區 · ${electionStation ? "投開票所明細" : `全里 ${village.station_ids.length} 所合計`}`;
+  $("election-location").textContent = electionStation
+    ? `${label} · 第 ${electionStation} 投開票所`
+    : `${label} · 全里合計`;
+  $("station-address").textContent = electionStation
+    ? `${record.location.name}｜${record.location.town}${record.location.address}`
+    : "選擇投開票所可查看場所、地址及該所得票。";
+  $("station-coverage").textContent = electionStation
+    ? `公告所轄里鄰別：${record.location.coverage}（公告第 ${record.location.source_page} 頁）`
+    : "";
+  $("election-stats").replaceChildren();
+  for (const [title, value] of [
+    ["有效票", numberText(record.valid)],
+    ["無效票", numberText(record.invalid)],
+    ["投票數", numberText(record.ballots)],
+    ["選舉人數", numberText(record.eligible)],
+    ["投票率", record.turnout === null ? "—" : record.turnout.toFixed(2) + "%"],
+  ]) {
+    const card = document.createElement("div"),
+      heading = document.createElement("span"),
+      amount = document.createElement("strong");
+    heading.textContent = title;
+    amount.textContent = value;
+    card.append(heading, amount);
+    $("election-stats").append(card);
+  }
+  $("election-caption").textContent =
+    `${label}${electionStation ? `第 ${electionStation} 所` : "全里"}候選人得票（依得票數排序）`;
+  $("election-rows").replaceChildren();
+  const rows = electionData.candidates[String(record.district)]
+    .map((candidate, index) => ({ ...candidate, votes: record.votes[index] }))
+    .sort((a, b) => b.votes - a.votes || a.number - b.number);
+  for (const candidate of rows) {
+    const row = document.createElement("tr");
+    for (const value of [
+      candidate.number,
+      candidate.name,
+      candidate.party,
+      numberText(candidate.votes),
+      record.valid
+        ? ((candidate.votes / record.valid) * 100).toFixed(2) + "%"
+        : "—",
+      candidate.elected ? "原選區當選" : "—",
+    ]) {
+      const cell = document.createElement("td");
+      cell.textContent = String(value);
+      row.append(cell);
+    }
+    $("election-rows").append(row);
+  }
+}
+$("election-village").onchange = (e) => {
+  selectElectionVillage(e.target.value);
+  focusVillage(e.target.value);
+};
+$("election-station").onchange = (e) => {
+  electionStation = e.target.value;
+  renderElection();
+};
+function findStation() {
+  const value = $("station-number").value.trim();
+  if (!electionData) return toast("選舉資料尚未載入");
+  if (!/^[0-9]{1,4}$/.test(value))
+    return toast("請輸入 1 至 1755 的投開票所編號");
+  const id = value.padStart(4, "0"),
+    station = electionData.stations[id];
+  if (!station) return toast("找不到這個 2022 投開票所編號");
+  focusVillage(station.village_id);
+  electionStation = id;
+  $("election-station").value = id;
+  renderElection();
+}
+$("find-station").onclick = findStation;
+$("station-number").onkeydown = (e) => {
+  if (e.key === "Enter") findStation();
+};
+$("election-download").onclick = () => {
+  const record = electionRecord();
+  if (!record) return toast("選舉資料尚未載入");
+  const village = electionData.villages[electionVillage],
+    headers = [
+      "選舉",
+      "行政區",
+      "里",
+      "投開票所",
+      "號次",
+      "候選人",
+      "政黨",
+      "得票數",
+      "得票率",
+      "原選區當選",
+    ];
+  const rows = electionData.candidates[String(record.district)].map((c, i) => [
+    electionData.title,
+    village.town,
+    village.village,
+    electionStation || "全里合計",
+    c.number,
+    c.name,
+    c.party,
+    record.votes[i],
+    record.valid ? ((record.votes[i] / record.valid) * 100).toFixed(2) : "",
+    c.elected ? "是" : "否",
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) =>
+      row
+        .map((value) => '"' + String(value).replaceAll('"', '""') + '"')
+        .join(","),
+    )
+    .join("\r\n");
+  download(
+    "\uFEFF" + csv,
+    "text/csv;charset=utf-8",
+    `2022-council-${electionStation || electionVillage}.csv`,
+  );
+};
 init();

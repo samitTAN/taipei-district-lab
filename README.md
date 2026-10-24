@@ -2,12 +2,13 @@
 
 以開放原始碼，讓公民看懂台北市議員選區，並探索自己的選區方案。
 
-[GitHub 原始碼](https://github.com/samitTAN/taipei-district-lab) · [線上版本](https://taipei-district-lab.violetguppy133.chatgpt.site/) · [資料來源與限制](docs/DATA.md) · [貢獻指南](CONTRIBUTING.md) · [發展規劃](docs/ROADMAP.md)
+[GitHub 原始碼](https://github.com/samitTAN/taipei-district-lab) · [線上版本](https://taipei-district-lab.violetguppy133.chatgpt.site/) · [資料來源與限制](docs/DATA.md) · [選舉資料口徑](docs/ELECTIONS.md) · [貢獻指南](CONTRIBUTING.md) · [發展規劃](docs/ROADMAP.md)
 
 ## 目前功能
 
 - 檢視第 14 屆六個區域議員選區與應選席次，另說明兩個原住民身分選區。
 - 以 456 個里為單位點選／拖曳塗選，支援搜尋定位、行政區整批分配、新增或移除選區。
+- 查詢 2022 區域議員選舉：456 里／1,755 所候選人得票、有效／無效票與投票率，支援所號查詢、公告場所地址及 CSV 匯出。
 - 未分配、空選區與圖資鄰接檢查；復原及重做。
 - 本機瀏覽器儲存、JSON 匯入匯出與連結分享。
 - 繁體中文介面，無需帳號；不使用外部 JavaScript 套件。
@@ -54,7 +55,7 @@ python -m pytest
 ```text
 backend/              Python FastAPI 路由、schema 與方案檢查
 src/                  網頁原始碼（HTML、CSS、JavaScript）
-data/source.json      圖資來源、版本、雜湊與授權狀態
+data/                 官方里界、選舉結果及來源／雜湊／授權紀錄
 scripts/              資料準備、建置與本機伺服器
 tests/                前端煙霧測試與 Python API 整合測試
 docs/                 架構、資料、部署及發展規劃

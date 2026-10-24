@@ -14,7 +14,7 @@ npm run build
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-從儲存庫根目錄執行，保留 `backend/`、`data/villages-source.json`、`data/taipei-villages.json`、`data/taipei-districts.json` 與 `dist/`。對外服務應由主機提供 HTTPS；`--reload` 僅供開發使用。健康探針為 `/api/health`，圖資就緒探針為 `/api/ready`；前端是否建置可另以 `/` 檢查。
+從儲存庫根目錄執行，保留 `backend/`、`data/villages-source.json`、`data/taipei-villages.json`、`data/taipei-districts.json`、`data/elections/` 與 `dist/`。對外服務應由主機提供 HTTPS；`--reload` 僅供開發使用。健康探針為 `/api/health`，圖資就緒探針為 `/api/ready`；前端是否建置可另以 `/` 檢查。
 
 圖資可由 `DISTRICT_DATA_PATH` 指定絕對檔案路徑。API 不需要資料庫或機密環境變數。後端不持久儲存方案；未來若加入雲端儲存，需另設認證與存取控制。
 
