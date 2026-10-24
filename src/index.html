@@ -1,7 +1,161 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="看懂台北市議員選區，以行政區為單位探索你的重劃方案。"><title>台北選區實驗室 · Taipei District Lab</title><link rel="stylesheet" href="style.css"></head><body>
-<header><a class="brand" href="./"><span class="mark">▧</span><span>台北選區實驗室<small>TAIPEI DISTRICT LAB</small></span></a><div class="header-right"><span class="beta">公民參與工具 · 第一版</span><button id="about">使用說明 ↗</button></div></header>
-<main><section class="intro"><div><div class="eyebrow">OUR CITY, OUR DISTRICTS</div><h1>台北的界線，<span>一起想像。</span></h1><p>看懂現在的議員選區，也畫出你心中的城市。</p></div><div class="intro-note"><span>01 / 台北市</span><p>從 12 個行政區出發，<br>探索不同的選區組合。</p></div></section>
-<section class="workspace"><div class="map-column"><div class="map-toolbar"><div class="tabs" aria-label="地圖模式"><button id="current" class="active" aria-pressed="true">現行選區</button><button id="edit" aria-pressed="false">自行重劃 <span>↗</span></button></div><span class="unit">劃分單位：行政區</span></div><div class="map-shell"><div class="map-heading"><span id="map-badge">現行配置 · 第 14 屆</span><strong id="map-title">臺北市議員區域選區</strong></div><div class="north">N<br>↑</div><svg id="map" viewBox="0 0 760 660" role="group" aria-label="台北市行政區互動地圖"><text x="380" y="330" text-anchor="middle">地圖載入中…</text></svg><div class="map-controls"><button id="zoom-in" aria-label="放大地圖">＋</button><button id="zoom-out" aria-label="縮小地圖">−</button><button id="fit" aria-label="還原地圖比例">⌖</button></div><div class="map-caption"><span class="live-dot"></span><span id="map-hint">點選行政區，認識所屬選區</span></div><span class="map-source">區界示意 · 開源 2010 圖資</span></div><div class="map-footer"><span>顏色僅用於區分選區，無政黨意涵。</span><button id="sources">資料來源與限制 ↗</button></div></div>
-<aside><div class="panel-top"><div class="eyebrow" id="panel-eyebrow">THE CURRENT MAP</div><h2 id="panel-title">認識現行選區</h2><p id="panel-desc">六個區域選區，每個選區選出多位議員。</p></div><div id="editor-tools" hidden><label class="field">方案名稱<input id="plan-name" value="我的台北選區方案" maxlength="60"></label><div class="row"><button id="undo">↶ 復原</button><button id="redo">↷ 重做</button><button id="erase" aria-pressed="false">橡皮擦</button></div><p class="help">先選一個下方色塊，再點地圖分配行政區。</p></div><div id="districts" class="district-list"></div><div id="edit-actions" hidden><div class="row"><button id="add">＋ 新增選區</button><button id="remove">移除末選區</button></div><div class="checks" id="checks"></div><div class="action-grid"><button id="save" class="primary">儲存到此瀏覽器</button><button id="load">載入已存方案</button><button id="export">匯出 JSON</button><button id="import">匯入 JSON</button><button id="share">複製方案連結</button><button id="reset">重設為現行</button></div><input type="file" id="file" accept=".json,application/json" hidden><small id="save-status">方案儲存在目前裝置的瀏覽器，不會上傳。</small></div><div id="current-note" class="indigenous"><span>還有兩個全市選區</span><p>第 7 選區：平地原住民 · 1 席<br>第 8 選區：山地原住民 · 1 席</p><small>以原住民身分區分，不按地理區塊切割。</small></div></aside></section>
-<section class="bottom-strip"><div><span>01</span><h3>先認識，再動手</h3><p>切換現行配置，理解每個選區的組成。</p></div><div><span>02</span><h3>把想法畫在地圖上</h3><p>完整保留行政區，試試不同的組合。</p></div><div><span>03</span><h3>讓討論有個起點</h3><p>儲存或分享你的方案，邀請大家一起思考。</p></div></section></main><footer><span>台北選區實驗室</span><span>公民探索版本 · 非官方選務網站</span><a href="https://districtr.org/" target="_blank" rel="noreferrer">Inspired by Districtr ↗</a></footer>
-<div id="toast" role="status" aria-live="polite"></div><dialog id="dialog"><button id="close-dialog" class="close" aria-label="關閉">×</button><div id="dialog-body"></div></dialog><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="看懂台北市議員選區，以行政區為單位探索你的重劃方案。"
+    />
+    <title>台北選區實驗室 · Taipei District Lab</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./"
+        ><span class="mark">▧</span
+        ><span>台北選區實驗室<small>TAIPEI DISTRICT LAB</small></span></a
+      >
+      <div class="header-right">
+        <span class="beta">公民參與工具 · 第一版</span
+        ><button id="about">使用說明 ↗</button>
+      </div>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <div class="eyebrow">OUR CITY, OUR DISTRICTS</div>
+          <h1>台北的界線，<span>一起想像。</span></h1>
+          <p>看懂現在的議員選區，也畫出你心中的城市。</p>
+        </div>
+        <div class="intro-note">
+          <span>01 / 台北市</span>
+          <p>從 12 個行政區出發，<br />探索不同的選區組合。</p>
+        </div>
+      </section>
+      <section class="workspace">
+        <div class="map-column">
+          <div class="map-toolbar">
+            <div class="tabs" aria-label="地圖模式">
+              <button id="current" class="active" aria-pressed="true">
+                現行選區</button
+              ><button id="edit" aria-pressed="false">
+                自行重劃 <span>↗</span>
+              </button>
+            </div>
+            <span class="unit">劃分單位：行政區</span>
+          </div>
+          <div class="map-shell">
+            <div class="map-heading">
+              <span id="map-badge">現行配置 · 第 14 屆</span
+              ><strong id="map-title">臺北市議員區域選區</strong>
+            </div>
+            <div class="north">N<br />↑</div>
+            <svg
+              id="map"
+              viewBox="0 0 760 660"
+              role="group"
+              aria-label="台北市行政區互動地圖"
+            >
+              <text x="380" y="330" text-anchor="middle">地圖載入中…</text>
+            </svg>
+            <div class="map-controls">
+              <button id="zoom-in" aria-label="放大地圖">＋</button
+              ><button id="zoom-out" aria-label="縮小地圖">−</button
+              ><button id="fit" aria-label="還原地圖比例">⌖</button>
+            </div>
+            <div class="map-caption">
+              <span class="live-dot"></span
+              ><span id="map-hint">點選行政區，認識所屬選區</span>
+            </div>
+            <span class="map-source">區界示意 · 開源 2010 圖資</span>
+          </div>
+          <div class="map-footer">
+            <span>顏色僅用於區分選區，無政黨意涵。</span
+            ><button id="sources">資料來源與限制 ↗</button>
+          </div>
+        </div>
+        <aside>
+          <div class="panel-top">
+            <div class="eyebrow" id="panel-eyebrow">THE CURRENT MAP</div>
+            <h2 id="panel-title">認識現行選區</h2>
+            <p id="panel-desc">六個區域選區，每個選區選出多位議員。</p>
+          </div>
+          <div id="editor-tools" hidden>
+            <label class="field"
+              >方案名稱<input
+                id="plan-name"
+                value="我的台北選區方案"
+                maxlength="60"
+            /></label>
+            <div class="row">
+              <button id="undo">↶ 復原</button><button id="redo">↷ 重做</button
+              ><button id="erase" aria-pressed="false">橡皮擦</button>
+            </div>
+            <p class="help">先選一個下方色塊，再點地圖分配行政區。</p>
+          </div>
+          <div id="districts" class="district-list"></div>
+          <div id="edit-actions" hidden>
+            <div class="row">
+              <button id="add">＋ 新增選區</button
+              ><button id="remove">移除末選區</button>
+            </div>
+            <div class="checks" id="checks"></div>
+            <div class="action-grid">
+              <button id="save" class="primary">儲存到此瀏覽器</button
+              ><button id="load">載入已存方案</button
+              ><button id="export">匯出 JSON</button
+              ><button id="import">匯入 JSON</button
+              ><button id="share">複製方案連結</button
+              ><button id="reset">重設為現行</button>
+            </div>
+            <input
+              type="file"
+              id="file"
+              accept=".json,application/json"
+              hidden
+            /><small id="save-status"
+              >方案儲存在目前裝置的瀏覽器，不會上傳。</small
+            >
+          </div>
+          <div id="current-note" class="indigenous">
+            <span>還有兩個全市選區</span>
+            <p>
+              第 7 選區：平地原住民 · 1 席<br />第 8 選區：山地原住民 · 1 席
+            </p>
+            <small>以原住民身分區分，不按地理區塊切割。</small>
+          </div>
+        </aside>
+      </section>
+      <section class="bottom-strip">
+        <div>
+          <span>01</span>
+          <h3>先認識，再動手</h3>
+          <p>切換現行配置，理解每個選區的組成。</p>
+        </div>
+        <div>
+          <span>02</span>
+          <h3>把想法畫在地圖上</h3>
+          <p>完整保留行政區，試試不同的組合。</p>
+        </div>
+        <div>
+          <span>03</span>
+          <h3>讓討論有個起點</h3>
+          <p>儲存或分享你的方案，邀請大家一起思考。</p>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span>台北選區實驗室</span><span>公民探索版本 · 非官方選務網站</span
+      ><a href="https://districtr.org/" target="_blank" rel="noreferrer"
+        >Inspired by Districtr ↗</a
+      >
+    </footer>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="dialog">
+      <button id="close-dialog" class="close" aria-label="關閉">×</button>
+      <div id="dialog-body"></div>
+    </dialog>
+    <script src="app.js"></script>
+  </body>
+</html>
