@@ -1,0 +1,15 @@
+.DS_Store
+node_modules/
+dist/
+data/taipei.json
+data/downloads/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+# Existing independent Sites checkout: never commit its Git metadata or hosting identity.
+/taipei-district-lab/
+.openai/
+*.pem
+*.key

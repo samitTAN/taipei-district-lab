@@ -1,0 +1,13 @@
+{
+  "id": "legacy-taipei-district-boundaries",
+  "upstream": "https://github.com/ronnywang/twgeojson",
+  "revision": "98312fe58a75aa06742b4b6e877e1f2533e20dcc",
+  "url": "https://raw.githubusercontent.com/ronnywang/twgeojson/98312fe58a75aa06742b4b6e877e1f2533e20dcc/twtown2010.3.json",
+  "sha256": "ec1bcd582407eddb82b121512c317ff5804a50728f1de3771734f070d5046a3d",
+  "source_year": 2012,
+  "source_year_note": "Upstream README identifies township/county data as ROC 101 (2012); 2010 in the filename denotes the post-merger administrative version.",
+  "filter": { "county": "臺北市" },
+  "expected_features": 12,
+  "license_status": "Upstream repository has no explicit license identified; third-party geometry is not covered by the project MIT license and is not committed here.",
+  "checked_on": "2026-10-24"
+}
