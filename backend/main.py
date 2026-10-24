@@ -7,18 +7,19 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
-from backend.domain import BASELINE, NAMES, SEATS, Plan, adjacency, check_plan
+from backend.domain import BASELINE, NAMES, SEATS, Plan, adjacency, check_plan, VillagePlan, village_catalog, migrate_plan, check_village_plan
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def create_app(data_path: Path | None = None, frontend_dir: Path | None = None) -> FastAPI:
-    data_path = data_path or Path(os.environ.get("DISTRICT_DATA_PATH", ROOT / "data/taipei.json"))
+def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, village_path: Path | None = None) -> FastAPI:
+    data_path = data_path or Path(os.environ.get("DISTRICT_DATA_PATH", ROOT / "data/taipei-districts.json"))
     frontend_dir = frontend_dir or ROOT / "dist"
+    village_path = village_path or ROOT / "data/taipei-villages.json"
     app = FastAPI(
         title="Taipei District Lab API",
-        version="0.2.0",
-        description="台北市行政區級選區探索。圖資為歷史版本，方案檢查非法律合規認定。",
+        version="0.3.0",
+        description="台北市逐里選區探索，方案檢查非法律合規認定。",
     )
 
     @lru_cache(maxsize=1)
@@ -35,13 +36,31 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None) 
         except (OSError, ValueError, KeyError, TypeError):
             raise HTTPException(503, "Boundary data unavailable. Run npm run data:prepare.") from None
 
+    @lru_cache(maxsize=1)
+    def villages():
+        try:
+            data = json.loads(village_path.read_text(encoding="utf-8"))
+            village_catalog(data)
+            return data
+        except (OSError, ValueError, KeyError, TypeError):
+            raise HTTPException(503, "Official village data unavailable") from None
+
+    @app.get("/api/villages/geometry", tags=["villages"])
+    def village_geometry():
+        return villages()
+
+    @app.post("/api/plans/migrate", tags=["plans"])
+    def migrate(plan: Plan):
+        return migrate_plan(plan, villages()).model_dump()
+
     @app.get("/api/health", tags=["system"])
     def health():
-        return {"status": "ok", "version": "0.2.0"}
+        return {"status": "ok", "version": "0.3.0"}
 
     @app.get("/api/ready", tags=["system"])
     def ready():
         geometry()
+        villages()
         return {"status": "ready"}
 
     @app.get("/api/districts/current", tags=["districts"])
@@ -61,10 +80,15 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None) 
 
     @app.get("/api/data/source", tags=["districts"])
     def source():
-        return json.loads((ROOT / "data/source.json").read_text(encoding="utf-8"))
+        return json.loads((ROOT / "data/villages-source.json").read_text(encoding="utf-8"))
 
     @app.post("/api/plans/validate", tags=["plans"])
-    def validate_plan(plan: Plan):
+    def validate_plan(plan: Plan | VillagePlan):
+        if isinstance(plan, VillagePlan):
+            try:
+                return {"plan": plan.model_dump(), "checks": check_village_plan(plan, villages())}
+            except ValueError as error:
+                raise HTTPException(422, str(error)) from None
         return {"plan": plan.model_dump(), "checks": check_plan(plan, adjacency(geometry()))}
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)

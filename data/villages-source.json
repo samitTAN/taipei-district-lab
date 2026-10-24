@@ -1,0 +1,17 @@
+{
+  "id": "taipei-official-villages-20260921-acff9aeb",
+  "publisher": "臺北市政府民政局",
+  "dataset": "https://data.taipei/dataset/detail?id=6b17b31d-4e16-495e-95b1-9fd1f47c80d8",
+  "national_catalog": "https://data.gov.tw/dataset/121163",
+  "url": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=145e30da-58f3-45db-a125-8adc3fde2620",
+  "sha256": "acff9aebcaa04c26d1fd8beceff1e7a3b95a2d35177ec0bafef08499e1e276ac",
+  "resource_updated_at": "2026-09-21T14:26:43+08:00",
+  "coverage_end_as_listed": "2025-06-17",
+  "checked_on": "2026-10-24",
+  "source_crs": "EPSG:3826",
+  "output_crs": "EPSG:4326",
+  "expected_features": 456,
+  "license": "OGDL-Taiwan-1.0",
+  "license_url": "https://data.gov.tw/license",
+  "note": "Resource update date is not a guarantee that every boundary takes effect on that date. No geometry simplification is applied. Neighbors require more than 0.1 meter shared boundary in original source coordinates."
+}

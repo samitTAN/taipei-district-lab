@@ -16,9 +16,17 @@ const names = [
   "大安區",
   "文山區",
 ];
-const baseline = Object.fromEntries(
+const districtBaseline = Object.fromEntries(
   names.map((n, i) => [n, Math.floor(i / 2) + 1]),
 );
+let baseline = { ...districtBaseline },
+  unitIds = [],
+  units = new Map(),
+  projectPoint,
+  panX = 0,
+  panY = 0,
+  moveTool = false,
+  stroke = null;
 const colors = [
   "#91b7a0",
   "#d8b375",
@@ -40,7 +48,7 @@ let state = {
     unit: "district",
     name: "我的台北選區方案",
     count: 6,
-    assignments: { ...baseline },
+    assignments: { ...districtBaseline },
   },
   mode = "current",
   selected = 1,
@@ -83,34 +91,101 @@ function change(fn) {
   render();
 }
 function validate(s) {
+  const fail = () => {
+    throw Error("方案格式或圖資版本不符，請匯入本工具的台北市方案。");
+  };
   if (
     !s ||
-    s.version !== 1 ||
     s.city !== "臺北市" ||
-    s.unit !== "district" ||
     typeof s.name !== "string" ||
     s.name.length > 60 ||
     !Number.isInteger(s.count) ||
     s.count < 1 ||
     s.count > 12 ||
     !s.assignments ||
-    Object.keys(s.assignments).length !== 12 ||
-    !names.every(
-      (n) =>
-        Number.isInteger(s.assignments[n]) &&
-        s.assignments[n] >= 0 &&
-        s.assignments[n] <= s.count,
+    typeof s.assignments !== "object"
+  )
+    fail();
+  if (s.version === 1 && s.unit === "district") {
+    if (
+      Object.keys(s.assignments).length !== 12 ||
+      !names.every(
+        (n) =>
+          Number.isInteger(s.assignments[n]) &&
+          s.assignments[n] >= 0 &&
+          s.assignments[n] <= s.count,
+      )
+    )
+      fail();
+    return {
+      version: 2,
+      city: "臺北市",
+      unit: "village",
+      dataset_version: geo.dataset_version,
+      name: s.name,
+      count: s.count,
+      assignments: Object.fromEntries(
+        unitIds.map((id) => [id, s.assignments[units.get(id).town]]),
+      ),
+    };
+  }
+  if (
+    s.version !== 2 ||
+    s.unit !== "village" ||
+    s.dataset_version !== geo.dataset_version ||
+    Object.keys(s.assignments).length !== unitIds.length ||
+    !unitIds.every(
+      (id) =>
+        Number.isInteger(s.assignments[id]) &&
+        s.assignments[id] >= 0 &&
+        s.assignments[id] <= s.count,
     )
   )
-    throw Error("方案格式不符：請匯入本工具匯出的台北市行政區方案。");
+    fail();
   return {
-    version: 1,
+    version: 2,
     city: "臺北市",
-    unit: "district",
+    unit: "village",
+    dataset_version: geo.dataset_version,
     name: s.name,
     count: s.count,
-    assignments: Object.fromEntries(names.map((n) => [n, s.assignments[n]])),
+    assignments: Object.fromEntries(
+      unitIds.map((id) => [id, s.assignments[id]]),
+    ),
   };
+}
+function shareHash(plan) {
+  return (
+    "#v2=" +
+    [
+      encodeURIComponent(plan.dataset_version),
+      plan.count,
+      encodeURIComponent(plan.name).replaceAll("~", "%7E"),
+      unitIds.map((id) => plan.assignments[id].toString(16)).join(""),
+    ].join("~")
+  );
+}
+function readShare(hash) {
+  if (hash.startsWith("#plan="))
+    return validate(JSON.parse(decodeURIComponent(hash.slice(6))));
+  const parts = hash.slice(4).split("~");
+  if (
+    parts.length !== 4 ||
+    !/^[0-9a-c]+$/.test(parts[3]) ||
+    parts[3].length !== unitIds.length
+  )
+    throw Error("分享連結格式不符");
+  return validate({
+    version: 2,
+    city: "臺北市",
+    unit: "village",
+    dataset_version: decodeURIComponent(parts[0]),
+    count: Number(parts[1]),
+    name: decodeURIComponent(parts[2]),
+    assignments: Object.fromEntries(
+      unitIds.map((id, i) => [id, parseInt(parts[3][i], 16)]),
+    ),
+  });
 }
 function components(members) {
   if (!members.length) return 0;
@@ -134,9 +209,10 @@ function setMode(v) {
   render();
 }
 function membersFor(i, a) {
-  return names.filter((n) => a[n] === i);
+  return unitIds.filter((n) => a[n] === i);
 }
 function render() {
+  if (unitIds.length) searchVillages();
   let editing = mode === "edit",
     a = editing ? state.assignments : baseline,
     count = editing ? state.count : 6;
@@ -152,7 +228,7 @@ function render() {
     : "THE CURRENT MAP";
   $("panel-title").textContent = editing ? "畫出你的選區" : "認識現行選區";
   $("panel-desc").textContent = editing
-    ? "以行政區為單位，重新組合台北的選區。"
+    ? "以 456 個里為單位，重新組合台北的選區。"
     : "六個區域選區，每個選區選出多位議員。";
   $("map-badge").textContent = editing
     ? "公民重劃草案 · 非官方方案"
@@ -160,9 +236,11 @@ function render() {
   $("map-title").textContent = editing ? state.name : "臺北市議員區域選區";
   $("map-hint").textContent = editing
     ? erase
-      ? "橡皮擦模式：點選行政區取消分配"
-      : `點選行政區，加入第 ${selected} 選區`
-    : "點選行政區，認識所屬選區";
+      ? "橡皮擦：點選或拖曳取消里的分配"
+      : `點選或拖曳塗選，加入第 ${selected} 選區`
+    : "點選里，認識所屬選區";
+  if (moveTool)
+    $("map-hint").textContent = "移動工具：拖曳平移地圖，不變更分配";
   $("plan-name").value = state.name;
   $("undo").disabled = !history.length;
   $("redo").disabled = !future.length;
@@ -192,13 +270,15 @@ function render() {
     title.textContent = `第 ${i} 選區`;
     let sub = document.createElement("small");
     sub.textContent = members.length
-      ? members.map((n) => n.replace("區", "")).join("・")
+      ? [
+          ...new Set(members.map((id) => units.get(id).town.replace("區", ""))),
+        ].join("・")
       : "尚未分配";
     txt.append(title, sub);
     let extra = document.createElement("span");
     extra.className = "seats";
     if (editing) {
-      extra.textContent = `${members.length} 區`;
+      extra.textContent = `${members.length} 里`;
     } else {
       let num = document.createElement("b");
       num.textContent = seats[i - 1];
@@ -222,17 +302,13 @@ function render() {
       p.classList.toggle("highlight", !editing && a[n] === highlight);
       p.setAttribute(
         "aria-label",
-        `${n}，${i ? `第 ${i} 選區` : "未分配"}${editing ? "，點選重新分配" : ""}`,
+        `${units.get(n).label}，${i ? `第 ${i} 選區` : "未分配"}${editing ? "，點選重新分配" : ""}`,
       );
       p.querySelector("title").textContent =
-        `${n} · ${i ? `第 ${i} 選區` : "未分配"}`;
-    });
-    document.querySelectorAll(".district-sub").forEach((t) => {
-      let i = a[t.dataset.name];
-      t.textContent = i ? `第 ${i} 選區` : "未分配";
+        `${units.get(n).label} · ${i ? `第 ${i} 選區` : "未分配"}`;
     });
   }
-  const missing = names.filter((n) => !a[n]),
+  const missing = unitIds.filter((n) => !a[n]),
     empty = [],
     disconnected = [];
   for (let i = 1; i <= count; i++) {
@@ -242,9 +318,17 @@ function render() {
   }
   $("checks").replaceChildren();
   for (const [text, warn] of [
-    [`已分配 ${12 - missing.length} / 12 個行政區`, !!missing.length],
     [
-      missing.length ? `未分配：${missing.join("、")}` : "✓ 所有行政區皆已分配",
+      `已分配 ${unitIds.length - missing.length} / ${unitIds.length} 里`,
+      !!missing.length,
+    ],
+    [
+      missing.length
+        ? `未分配：${missing
+            .slice(0, 4)
+            .map((id) => units.get(id).label)
+            .join("、")}${missing.length > 4 ? "…" : ""}`
+        : "✓ 所有里皆已分配",
       !!missing.length,
     ],
     [
@@ -267,7 +351,9 @@ function activate(n) {
   if (mode === "current") {
     highlight = baseline[n];
     render();
-    toast(`${n}：第 ${baseline[n]} 選區 · ${seats[baseline[n] - 1]} 席`);
+    toast(
+      `${units.get(n).label}：第 ${baseline[n]} 選區 · ${seats[baseline[n] - 1]} 席`,
+    );
   } else {
     let target = erase ? 0 : selected;
     if (state.assignments[n] === target) return;
@@ -280,58 +366,61 @@ function polygons(f) {
     : f.geometry.coordinates;
 }
 async function init() {
-  if (API) $("save-status").textContent = "儲存於此瀏覽器；匯入方案會送後端驗證，不持久保留。";
   try {
-    if (API) {
-      const configResponse = await fetch(`${API}/districts/current`);
-      if (!configResponse.ok) throw Error("無法載入選區設定");
-      const config = await configResponse.json();
-      if (
-        config.council_term !== 14 ||
-        !names.every((n) => Number.isInteger(config.assignments[n])) ||
-        config.seats.length !== 6
-      )
-        throw Error("選區設定版本不相容");
-      Object.assign(baseline, config.assignments);
-      seats.splice(0, seats.length, ...config.seats);
-      state.assignments = { ...baseline };
-    }
-    let r = await fetch(API ? `${API}/districts/geometry` : "./taipei.json");
-    if (!r.ok) throw Error("圖資載入失敗");
-    geo = await r.json();
-    let all = geo.features.flatMap((f) => polygons(f).flat(2));
-    let minX = Math.min(...all.map((p) => p[0])),
-      maxX = Math.max(...all.map((p) => p[0])),
-      minY = Math.min(...all.map((p) => p[1])),
-      maxY = Math.max(...all.map((p) => p[1]));
-    let cos = Math.cos((25 * Math.PI) / 180),
+    if (API)
+      $("save-status").textContent =
+        "儲存於此瀏覽器；匯入方案會送後端驗證，不持久保留。";
+    const response = await fetch(
+      API ? `${API}/villages/geometry` : "./taipei-villages.json",
+    );
+    if (!response.ok) throw Error("圖資載入失敗");
+    geo = await response.json();
+    if (geo.features.length !== 456 || !geo.dataset_version)
+      throw Error("里界資料不完整");
+    units = new Map(geo.features.map((f) => [f.properties.id, f.properties]));
+    unitIds = [...units.keys()].sort();
+    baseline = Object.fromEntries(
+      unitIds.map((id) => [id, districtBaseline[units.get(id).town]]),
+    );
+    state = {
+      version: 2,
+      city: "臺北市",
+      unit: "village",
+      dataset_version: geo.dataset_version,
+      name: state.name,
+      count: 6,
+      assignments: { ...baseline },
+    };
+    adj = Object.fromEntries(
+      unitIds.map((id) => [id, new Set(units.get(id).neighbors)]),
+    );
+    const bounds = geo.features
+      .flatMap((f) => polygons(f).flat(2))
+      .reduce(
+        (b, p) => [
+          Math.min(b[0], p[0]),
+          Math.min(b[1], p[1]),
+          Math.max(b[2], p[0]),
+          Math.max(b[3], p[1]),
+        ],
+        [Infinity, Infinity, -Infinity, -Infinity],
+      );
+    const [minX, minY, maxX, maxY] = bounds,
+      cos = Math.cos((25 * Math.PI) / 180),
       scale = Math.min(580 / ((maxX - minX) * cos), 530 / (maxY - minY));
-    let project = (p) => [
+    projectPoint = (p) => [
       380 + (p[0] - (minX + maxX) / 2) * cos * scale,
       355 - (p[1] - (minY + maxY) / 2) * scale,
     ];
-    let owners = new Map();
-    for (const f of geo.features) {
-      let n = f.properties.town;
-      adj[n] = new Set();
-      for (const p of polygons(f).flat(2)) {
-        let key = p.join(",");
-        if (!owners.has(key)) owners.set(key, new Set());
-        owners.get(key).add(n);
-      }
-    }
-    for (const s of owners.values())
-      for (const n of s)
-        for (const other of s) if (other !== n) adj[n].add(other);
     $("map").replaceChildren();
-    let g = document.createElementNS(NS, "g");
-    g.id = "map-layer";
-    $("map").append(g);
+    const layer = document.createElementNS(NS, "g");
+    layer.id = "map-layer";
+    $("map").append(layer);
     for (const f of geo.features) {
-      let n = f.properties.town,
-        p = document.createElementNS(NS, "path");
-      p.dataset.name = n;
-      p.setAttribute(
+      const id = f.properties.id,
+        path = document.createElementNS(NS, "path");
+      path.dataset.name = id;
+      path.setAttribute(
         "d",
         polygons(f)
           .map((poly) =>
@@ -340,9 +429,9 @@ async function init() {
                 (ring) =>
                   "M" +
                   ring
-                    .map((v) =>
-                      project(v)
-                        .map((t) => t.toFixed(2))
+                    .map((p) =>
+                      projectPoint(p)
+                        .map((v) => v.toFixed(3))
                         .join(","),
                     )
                     .join("L") +
@@ -352,59 +441,180 @@ async function init() {
           )
           .join(""),
       );
-      p.setAttribute("fill-rule", "evenodd");
-      p.setAttribute("tabindex", "0");
-      p.setAttribute("role", "button");
-      let title = document.createElementNS(NS, "title");
-      p.append(title);
-      p.onclick = () => activate(n);
-      p.onkeydown = (e) => {
+      path.setAttribute("fill-rule", "evenodd");
+      path.setAttribute("tabindex", "0");
+      path.setAttribute("role", "button");
+      path.append(document.createElementNS(NS, "title"));
+      path.onclick = (e) => {
+        if (e.detail === 0) activate(id);
+      };
+      path.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          activate(n);
+          activate(id);
         }
       };
-      g.append(p);
+      path.onpointerdown = (e) => startStroke(e, id);
+      path.onpointerenter = () => {
+        $("hover-village").textContent = f.properties.label;
+      };
+      layer.append(path);
     }
-    for (const n of names) {
-      let [x, y] = project(positions[n]),
-        t = document.createElementNS(NS, "text");
-      t.setAttribute("x", x);
-      t.setAttribute("y", y);
-      t.setAttribute("text-anchor", "middle");
-      t.setAttribute("class", "district-label");
-      t.textContent = n;
-      let sub = document.createElementNS(NS, "tspan");
-      sub.setAttribute("x", x);
-      sub.setAttribute("dy", "15");
-      sub.setAttribute("class", "district-sub");
-      sub.dataset.name = n;
-      t.append(sub);
-      g.append(t);
+    for (const town of names) {
+      const [x, y] = projectPoint(positions[town]),
+        text = document.createElementNS(NS, "text");
+      text.setAttribute("x", x);
+      text.setAttribute("y", y);
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("class", "district-label");
+      text.textContent = town;
+      layer.append(text);
+      const option = document.createElement("option");
+      option.value = town;
+      option.textContent = town;
+      $("town-filter").append(option);
     }
-    if (location.hash.startsWith("#plan=")) {
+    if (
+      location.hash.startsWith("#plan=") ||
+      location.hash.startsWith("#v2=")
+    ) {
       try {
-        state = validate(
-          JSON.parse(decodeURIComponent(location.hash.slice(6))),
-        );
+        state = readShare(location.hash);
         mode = "edit";
-        toast("已載入連結中的方案");
+        toast("已載入方案；舊版行政區方案會自動轉為逐里配置");
       } catch (e) {
         toast(e.message);
       }
     }
     render();
+    searchVillages();
   } catch (e) {
-    $("map").replaceChildren();
-    let t = document.createElementNS(NS, "text");
-    t.setAttribute("x", 380);
-    t.setAttribute("y", 330);
-    t.setAttribute("text-anchor", "middle");
-    t.textContent = "地圖載入失敗，請重新整理。";
-    $("map").append(t);
-    toast("無法載入圖資，請檢查網路後重新整理。");
+    $("map-hint").textContent = "圖資載入失敗，請重新整理";
+    toast(e.message);
   }
 }
+function applyView() {
+  const layer = $("map-layer");
+  if (layer)
+    layer.setAttribute(
+      "transform",
+      `translate(${380 * (1 - zoom) + panX},${355 * (1 - zoom) + panY}) scale(${zoom})`,
+    );
+}
+function paint(id) {
+  if (!units.has(id)) return;
+  const target = erase ? 0 : selected;
+  if (state.assignments[id] === target) return;
+  if (!stroke.changed) {
+    history.push(clone(state));
+    if (history.length > 100) history.shift();
+    future = [];
+    stroke.changed = true;
+  }
+  state.assignments[id] = target;
+  render();
+}
+function startStroke(e, id) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  stroke = {
+    pointer: e.pointerId,
+    x: e.clientX,
+    y: e.clientY,
+    pan: moveTool,
+    changed: false,
+  };
+  $("map").setPointerCapture(e.pointerId);
+  if (moveTool) return;
+  if (mode === "current") {
+    activate(id);
+    stroke = null;
+  } else paint(id);
+}
+$("map").onpointerdown = (e) => {
+  if (e.target === $("map") && e.button === 0) {
+    stroke = { pointer: e.pointerId, x: e.clientX, y: e.clientY, pan: true };
+    $("map").setPointerCapture(e.pointerId);
+  }
+};
+$("map").onpointermove = (e) => {
+  if (!stroke || stroke.pointer !== e.pointerId) return;
+  if (stroke.pan) {
+    const box = $("map").getBoundingClientRect(),
+      factor = 760 / box.width;
+    panX += (e.clientX - stroke.x) * factor;
+    panY += (e.clientY - stroke.y) * factor;
+    stroke.x = e.clientX;
+    stroke.y = e.clientY;
+    applyView();
+  } else {
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (target?.dataset?.name) paint(target.dataset.name);
+  }
+};
+$("map").onpointerup = $("map").onpointercancel = () => {
+  stroke = null;
+};
+$("move-tool").onclick = () => {
+  moveTool = !moveTool;
+  $("move-tool").setAttribute("aria-pressed", moveTool);
+  $("map").classList.toggle("moving", moveTool);
+  render();
+};
+function focusVillage(id) {
+  const [x, y] = projectPoint(units.get(id).center);
+  zoom = 6;
+  panX = (380 - x) * zoom;
+  panY = (355 - y) * zoom;
+  applyView();
+  $("hover-village").textContent = units.get(id).label;
+  document
+    .querySelectorAll("#map path[data-name]")
+    .forEach((p) => p.classList.toggle("located", p.dataset.name === id));
+}
+function searchVillages() {
+  const term = $("village-search").value.trim(),
+    town = $("town-filter").value;
+  const matches = unitIds.filter((id) => {
+    const p = units.get(id);
+    return (!town || p.town === town) && (!term || p.label.includes(term));
+  });
+  $("search-results").replaceChildren();
+  $("search-count").textContent =
+    `${matches.length} 里${matches.length > 20 ? "，顯示前 20 筆，請縮小搜尋範圍" : ""}`;
+  for (const id of matches.slice(0, 20)) {
+    const row = document.createElement("div");
+    row.className = "search-row";
+    const locate = document.createElement("button");
+    locate.textContent = units.get(id).label;
+    locate.onclick = () => focusVillage(id);
+    row.append(locate);
+    if (mode === "edit") {
+      const add = document.createElement("button");
+      add.textContent = erase ? "取消分配" : "加入";
+      add.setAttribute(
+        "aria-label",
+        `${units.get(id).label}加入第 ${selected} 選區`,
+      );
+      add.onclick = () => activate(id);
+      row.append(add);
+    }
+    $("search-results").append(row);
+  }
+  $("assign-town").disabled = mode !== "edit" || !town;
+}
+$("village-search").oninput = searchVillages;
+$("town-filter").onchange = searchVillages;
+$("assign-town").onclick = () => {
+  const town = $("town-filter").value;
+  if (!town || mode !== "edit") return;
+  change(() => {
+    for (const id of unitIds)
+      if (units.get(id).town === town)
+        state.assignments[id] = erase ? 0 : selected;
+  });
+  toast(`${town}已整批分配，可復原`);
+};
 $("current").onclick = () => setMode("current");
 $("edit").onclick = () => setMode("edit");
 $("erase").onclick = () => {
@@ -439,7 +649,7 @@ $("add").onclick = () =>
   });
 $("remove").onclick = () =>
   change(() => {
-    for (const n of names)
+    for (const n of unitIds)
       if (state.assignments[n] === state.count) state.assignments[n] = 0;
     state.count--;
     selected = Math.min(selected, state.count);
@@ -455,7 +665,7 @@ $("reset").onclick = () => {
 };
 $("save").onclick = () => {
   try {
-    localStorage.setItem("taipei-plan-v1", JSON.stringify(state));
+    localStorage.setItem("taipei-plan-v2", JSON.stringify(state));
     $("save-status").textContent =
       "已儲存在此瀏覽器 · " + new Date().toLocaleTimeString("zh-TW");
     toast("方案已儲存至此瀏覽器");
@@ -465,7 +675,9 @@ $("save").onclick = () => {
 };
 $("load").onclick = () => {
   try {
-    let raw = localStorage.getItem("taipei-plan-v1");
+    let raw =
+      localStorage.getItem("taipei-plan-v2") ||
+      localStorage.getItem("taipei-plan-v1");
     if (!raw) return toast("此瀏覽器還沒有已存方案");
     let s = validate(JSON.parse(raw));
     change(() => {
@@ -519,11 +731,7 @@ $("file").onchange = async (e) => {
   }
 };
 $("share").onclick = async () => {
-  const url =
-    location.origin +
-    location.pathname +
-    "#plan=" +
-    encodeURIComponent(JSON.stringify(state));
+  const url = location.origin + location.pathname + shareHash(state);
   try {
     await navigator.clipboard.writeText(url);
     toast("已複製方案連結，可分享給其他人");
@@ -540,17 +748,24 @@ $("share").onclick = async () => {
   }
 };
 function mapZoom(v) {
-  zoom = Math.max(1, Math.min(2.5, v));
-  const layer = $("map-layer");
-  if (layer)
-    layer.setAttribute(
-      "transform",
-      `translate(${380 * (1 - zoom)},${355 * (1 - zoom)}) scale(${zoom})`,
-    );
+  zoom = Math.max(1, Math.min(12, v));
+  applyView();
 }
-$("zoom-in").onclick = () => mapZoom(zoom + 0.25);
-$("zoom-out").onclick = () => mapZoom(zoom - 0.25);
-$("fit").onclick = () => mapZoom(1);
+$("zoom-in").onclick = () => mapZoom(zoom * 1.4);
+$("zoom-out").onclick = () => mapZoom(zoom / 1.4);
+$("fit").onclick = () => {
+  zoom = 1;
+  panX = panY = 0;
+  applyView();
+};
+$("map").addEventListener(
+  "wheel",
+  (e) => {
+    e.preventDefault();
+    mapZoom(zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+  },
+  { passive: false },
+);
 function showDialog(title, html) {
   $("dialog-body").innerHTML = "<h2>" + title + "</h2>" + html;
   $("dialog").showModal();
@@ -561,12 +776,12 @@ $("dialog").onclick = (e) => {
 };
 $("about").onclick = () =>
   showDialog(
-    "一起探索台北的選區",
-    "<p>這是一個以行政區為單位的公民選區探索工具，參考 Districtr 的互動方式。</p><ol><li>在「現行選區」模式，點選地圖或選區卡片，查看行政區組成與第 14 屆應選席次。</li><li>切換「自行重劃」，選取選區色塊，再點選行政區重新分配；橡皮擦可以取消分配。</li><li>可新增選區、復原、儲存到瀏覽器，或匯出 JSON 備份。方案連結包含當下完整配置，可分享給其他人。</li></ol><p>第一版尚未提供里級劃分、人口統計、席次試算或法規合規審核。原住民兩個身分選區不納入地理重劃。</p>",
+    "以里畫出你的台北",
+    "<p>切換自行重劃，選取選區色塊，再點選或拖曳塗選各里。一筆拖曳算一次操作，可整筆復原。手機也可拖曳塗選。</p><p>使用「移動地圖」切換平移工具；＋／− 或滑鼠滾輪縮放。搜尋里名可定位，按搜尋結果的「加入」分配到目前選區；選擇行政區後可整區批次分配。</p><p>舊版行政區 JSON／本機存檔及分享連結會依各里所屬行政區轉為逐里方案。新版分享連結使用精簡格式；方案不會上傳儲存。</p><p>目前沒有里人口或席次試算。原住民身分選區另列，不參與地理重劃。</p>",
   );
 $("sources").onclick = () =>
   showDialog(
-    "資料來源與版本",
-    '<p><b>現行配置：</b>以第 14 屆（2022 年選出、2022–2026 任期）六個區域選區為基準。席次為應選名額，不表示當下在職人數。2026 年第 15 屆選務資料未納入此版本。</p><p>行政區組合：北投／士林、內湖／南港、松山／信義、中山／大同、中正／萬華、大安／文山。第 7、8 選區分別為全市平地及山地原住民，各 1 席。</p><p><a href="https://web.cec.gov.tw/mect/article/36911" target="_blank" rel="noreferrer">臺北市選委會第 14 屆議員選舉公告 ↗</a><br><a href="https://ah.lib.nccu.edu.tw/bitstream/140.119/146851/1/107101.pdf" target="_blank" rel="noreferrer">政治大學研究：2022 選區與應選名額（第 27 頁）↗</a></p><p><b>地圖：</b><a href="https://github.com/ronnywang/twgeojson" target="_blank" rel="noreferrer">ronnywang/twgeojson</a> 的 twtown2010.3.json，擷取台北市 12 區。此為 2010 年版簡化區界，只作示意；未宣稱為最新官方測繪邊界。鄰接檢查依圖資共用座標點建立，包含點接觸，不等同法定連通認定。</p><p><b>第一版範圍：</b>行政區不可切分。人口與每席代表人口尚未接入，不執行法定席次分配。草案為公民討論素材，並非官方變更或法律合規結論。</p><p>資料核對日期：2026-10-24。儲存使用本機瀏覽器，清除網站資料會移除已存方案；建議匯出備份。</p>',
+    "官方里界與版本",
+    '<p>圖資來源：臺北市政府民政局「臺北市里界圖」，456 里。下載資源更新日期 2026-09-21，頁面標示收錄期間迄日 2025-06-17；更新日期不等於每條邊界的生效日。</p><p>原始 SHP 為 EPSG:3826，轉為 WGS84，未簡化邊界。里代碼採原始 CPTVID；鄰接以原始圖形共邊超過 0.1 公尺判斷，僅點接觸不計。河川／橋梁交通可達性不在此幾何檢查內。</p><p><a href="https://data.taipei/dataset/detail?id=6b17b31d-4e16-495e-95b1-9fd1f47c80d8" target="_blank" rel="noreferrer">官方里界來源 ↗</a> · <a href="https://data.gov.tw/dataset/121163" target="_blank" rel="noreferrer">政府資料目錄與開放授權 ↗</a></p><p>六個區域選區配置與應選席次仍採第 14 屆（2022–2026）基準，未代表 2026 年第 15 屆選務公告；第 7、8 選區為全市平地、山地原住民，各 1 席。</p><p>圖資依政府資料開放授權條款第 1 版使用，已轉換座標與附加鄰接資料。人口、每席代表人口與法規合規審查尚未接入。</p>',
   );
 init();

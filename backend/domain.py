@@ -83,3 +83,70 @@ def check_plan(plan: Plan, graph: dict[str, set[str]]) -> dict:
         "method": "shared-coordinate-including-point-contact",
         "legal_compliance_assessed": False,
     }
+
+
+class VillagePlan(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    version: Literal[2]
+    city: Literal["臺北市"]
+    unit: Literal["village"]
+    dataset_version: str
+    name: Annotated[str, Field(max_length=60)]
+    count: Annotated[StrictInt, Field(ge=1, le=12)]
+    assignments: dict[str, StrictInt]
+
+    @model_validator(mode="after")
+    def check_values(self):
+        if any(v < 0 or v > self.count for v in self.assignments.values()):
+            raise ValueError("assignments must be between 0 and count")
+        return self
+
+
+def village_catalog(geojson):
+    features = geojson["features"]
+    ids = {f["properties"]["id"] for f in features}
+    if len(features) != 456 or len(ids) != 456:
+        raise ValueError("Expected 456 unique villages")
+    for feature in features:
+        p = feature["properties"]
+        if p["town"] not in NAMES or not set(p["neighbors"]) <= ids or p["id"] in p["neighbors"]:
+            raise ValueError("Invalid village metadata")
+    graph = {f["properties"]["id"]: set(f["properties"]["neighbors"]) for f in features}
+    if any(key not in graph[other] for key, ns in graph.items() for other in ns):
+        raise ValueError("Asymmetric village adjacency")
+    return graph
+
+
+def migrate_plan(plan: Plan, geojson: dict) -> VillagePlan:
+    return VillagePlan(version=2, city="臺北市", unit="village", name=plan.name,
+                       count=plan.count, dataset_version=geojson["dataset_version"],
+                       assignments={f["properties"]["id"]: plan.assignments[f["properties"]["town"]]
+                                    for f in geojson["features"]})
+
+
+def check_village_plan(plan: VillagePlan, geojson: dict):
+    graph = village_catalog(geojson)
+    if plan.dataset_version != geojson["dataset_version"]:
+        raise ValueError("Village dataset version mismatch")
+    if set(plan.assignments) != set(graph):
+        raise ValueError("assignments must contain exactly the 456 village IDs")
+    missing = [key for key, value in plan.assignments.items() if value == 0]
+    empty, disconnected = [], []
+    for district in range(1, plan.count + 1):
+        remaining = {key for key, value in plan.assignments.items() if value == district}
+        if not remaining:
+            empty.append(district)
+        parts = 0
+        while remaining:
+            parts += 1
+            queue = [remaining.pop()]
+            while queue:
+                neighbors = graph[queue.pop()] & remaining
+                remaining -= neighbors
+                queue.extend(neighbors)
+        if parts > 1:
+            disconnected.append(district)
+    return {"unassigned": missing, "empty_districts": empty, "disconnected_districts": disconnected,
+            "complete": not missing and not empty, "connected": not disconnected,
+            "method": "source-shared-boundary-over-0.1m", "legal_compliance_assessed": False}

@@ -10,7 +10,13 @@ const types = {
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
 };
-const allowed = new Set(["index.html", "app.js", "style.css", "taipei.json"]);
+const allowed = new Set([
+  "index.html",
+  "app.js",
+  "style.css",
+  "taipei.json",
+  "taipei-villages.json",
+]);
 const server = createServer(async (req, res) => {
   if (!["GET", "HEAD"].includes(req.method)) {
     res.writeHead(405, { Allow: "GET, HEAD" });

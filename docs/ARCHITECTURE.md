@@ -11,9 +11,9 @@
 - `scripts/build.mjs`：輸出可由任意靜態主機提供的 dist。
 - `tests/smoke.cjs`：以 Node.js VM 與最小 DOM 模擬，驗證核心行為。
 
-現行配置與使用者草案分開保存；切換現行模式不覆蓋草案。操作前保存快照，可復原／重做。鄰接資料由共用座標點建立，精度限制見 DATA.md。
+現行配置與使用者草案分開保存；切換現行模式不覆蓋草案。操作前保存快照，可復原／重做。v1 鄰接資料由共用座標點建立；v2 則使用官方里界的共邊鄰接，定義見 DATA.md。
 
-## 方案 JSON v1
+## 舊版相容方案 JSON v1
 
 ```json
 {
@@ -43,7 +43,7 @@ count 為 1–12 整數；所有 12 個行政區必須存在；分配值 0 為�
 
 localStorage 鍵為 `taipei-plan-v1`，目前只保留一份手動儲存的方案。分享連結為 `#plan=` 加上百分比編碼的 JSON，包含分享當時的快照，不提供同步更新、伺服器備份或存取權控管。
 
-未來里級版本應改用穩定里代碼，升級 schema，並提供 v1 行政區方案的遷移處理，避免以同名里或歷史代碼錯配。
+0.3.0 已提供 v2 逐里格式及 v1 遷移，詳見下方；v1 仍可由相容 API 驗證。
 
 ## FastAPI 後端（0.2.0）
 
@@ -60,4 +60,14 @@ localStorage 鍵為 `taipei-plan-v1`，目前只保留一份手動儲存的方�
 
 `/docs` 為互動 API 文件，`/openapi.json` 為規格。格式錯誤回傳 422；圖資未準備好回傳 503。空選區、未分配與未相連是可討論的草案狀態，會以檢查結果回傳而非拒絕整個請求。
 
-FastAPI 提供頁面時注入 `/api` 設定；前端由 API 讀取配置與地圖，匯入方案時再經後端驗證。靜態預覽仍可獨立運作；此模式保留瀏覽器內原有驗證。伺服器不儲存方案，localStorage、匯出與 fragment 分享行為維持不變。後端只提供同源 API，沒有開放任意來源的 CORS。
+FastAPI 提供頁面時注入 `/api` 設定；0.2 版前端由 API 讀取配置與地圖，匯入方案時再經後端驗證。靜態預覽仍可獨立運作；此模式保留瀏覽器內原有驗證。伺服器不儲存方案，localStorage、匯出與 fragment 分享行為維持不變。後端只提供同源 API，沒有開放任意來源的 CORS。
+
+## 逐里方案 v2（0.3.0）
+
+新版前端讀取 GET `/api/villages/geometry`（靜態模式為 taipei-villages.json），每個 Feature 的 properties 含 id、town、village、label、center 與 neighbors。圖資版本在 FeatureCollection 的 dataset_version。
+
+v2 JSON 使用 version=2、unit=village，新增 dataset_version；assignments 為完整 456 個官方里代碼對應選區（0 為未分配）。其他欄位與 v1 相同。FastAPI `/api/plans/validate` 同時接受 v1 與 v2；v2 會核對整份里代碼集合及圖資版本。POST `/api/plans/migrate` 接受 v1，依各里所屬行政區回傳 v2。
+
+前端匯入 v1 JSON、本機 taipei-plan-v1 或舊 #plan= 分享網址時，自動展開成 456 里；新存檔使用 taipei-plan-v2，保留舊存檔。新版 #v2= 分享格式依穩定排序的 456 代碼，使用 456 個十六進位字元表示分配，再附圖資版本、選區數與方案名稱。資料版本不同拒絕解碼，不以陣列位置猜測舊圖資。
+
+拖曳塗選一筆 gesture 只記一份歷史快照；地圖平移不修改分配。搜尋與整區操作使用同一份里代碼集合，整區分配可一次復原。共邊檢查依處理圖資時產生的鄰接表執行，前後端採相同資料。

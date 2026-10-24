@@ -7,12 +7,12 @@
 ## 目前功能
 
 - 檢視第 14 屆六個區域議員選區與應選席次，另說明兩個原住民身分選區。
-- 以 12 個完整行政區為單位，自由分配、新增或移除選區。
+- 以 456 個里為單位點選／拖曳塗選，支援搜尋定位、行政區整批分配、新增或移除選區。
 - 未分配、空選區與圖資鄰接檢查；復原及重做。
 - 本機瀏覽器儲存、JSON 匯入匯出與連結分享。
 - 繁體中文介面，無需帳號；不使用外部 JavaScript 套件。
 
-**這仍是行政區級探索版本：未提供逐里劃分、人口統計或法定席次計算。舊圖資尚未驗證為現行邊界。** 本工具不是官方選務網站，不為任何政黨或候選人背書。
+**目前已提供官方 456 里的逐里重劃，尚未接入人口統計或法定席次計算。現行配置仍採第 14 屆基準。** 本工具不是官方選務網站，不為任何政黨或候選人背書。
 
 ## 快速開始
 
@@ -30,11 +30,14 @@ npm run dev
 
 開啟 <http://127.0.0.1:8000>，API 文件在 <http://127.0.0.1:8000/docs>。Windows PowerShell 使用 `.venv\Scripts\Activate.ps1` 啟用虛擬環境。修改前端 `src/` 後重新執行 `npm run build`；後端開發模式會自動重載。`npm start` 啟動不自動重載的 FastAPI 服務；`npm run preview:static` 僅提供不含 API 的靜態預覽。
 
-`data:prepare` 會從固定版本的第三方來源下載歷史行政區界、核對 SHA-256，擷取台北市 12 區。圖資不在 Git 中散布，也不適用本專案 MIT 授權；使用與再散布前請閱讀 [資料文件](docs/DATA.md)。已有原始下載檔時，可離線執行：
+`data:prepare` 驗證已納入版本控制的官方 456 里 GeoJSON，無需下載歷史圖資。資料依政府資料開放授權條款第 1 版使用，詳細出處及有效日期限制見 [資料文件](docs/DATA.md)。原始 SHP 的重製方式：
 
 ```sh
-npm run data:prepare -- --source /absolute/path/to/twtown2010.3.json
+python -m pip install -e '.[geo]'
+python scripts/prepare_villages.py --source /absolute/path/to/official-villages.zip
 ```
+
+不帶 `--source` 時會下載固定資源並驗證 SHA-256；來源變動時必須先人工查核再更新紀錄。
 
 ## 檢查與測試
 
@@ -73,4 +76,4 @@ dist/                 建置輸出，不納入版本控制
 
 自行開發的程式碼及文件採 [MIT License](LICENSE)。第三方圖資及其他第三方內容不在此授權範圍，見 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-互動概念參考 [Districtr](https://districtr.org/)，本專案未複製其原始碼、商標或圖像。歷史圖資來源為 [ronnywang/twgeojson](https://github.com/ronnywang/twgeojson)。
+互動概念參考 [Districtr](https://districtr.org/)，本專案未複製其原始碼、商標或圖像。目前圖資來源為臺北市政府民政局官方里界圖；早期版本曾使用 ronnywang/twgeojson，現已取代。

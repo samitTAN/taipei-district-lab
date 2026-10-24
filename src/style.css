@@ -678,3 +678,97 @@ dialog a {
     font-size: 12px;
   }
 }
+/* Village editing: thin boundaries remain readable at city scale. */
+#map {
+  touch-action: none;
+}
+#map path {
+  stroke-width: 0.55;
+}
+#map path:hover,
+#map path:focus {
+  stroke-width: 1.5;
+}
+#map path.located {
+  stroke: #173e2b;
+  stroke-width: 2.4;
+}
+#map.moving,
+#map.moving path {
+  cursor: grab;
+}
+.hover-village {
+  position: absolute;
+  top: 72px;
+  left: 25px;
+  z-index: 1;
+  font-size: 12px;
+  background: #ffffffdc;
+  border-radius: 5px;
+  padding: 5px 9px;
+  pointer-events: none;
+}
+.village-search-panel {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  margin-bottom: 14px;
+}
+.village-search-panel summary {
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.village-search-panel .field {
+  margin: 8px 0;
+}
+.field select {
+  width: 100%;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: white;
+  color: var(--ink);
+}
+#assign-town {
+  font-size: 11px;
+  width: 100%;
+  margin: 6px 0;
+}
+#search-count {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+#search-results {
+  max-height: 145px;
+  overflow: auto;
+  margin-top: 7px;
+}
+.search-row {
+  display: flex;
+  gap: 5px;
+  margin: 4px 0;
+}
+.search-row button {
+  font-size: 11px;
+  padding: 5px 7px;
+}
+.search-row button:first-child {
+  flex: 1;
+  text-align: left;
+}
+aside {
+  max-height: 880px;
+  overflow-y: auto;
+}
+@media (max-width: 720px) {
+  aside {
+    max-height: none;
+  }
+  .hover-village {
+    top: 60px;
+    left: 17px;
+    font-size: 10px;
+  }
+}

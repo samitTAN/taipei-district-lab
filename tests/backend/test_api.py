@@ -78,3 +78,39 @@ def test_frontend_and_api_docs(client):
 
 def test_missing_frontend(tmp_path):
     assert TestClient(create_app(frontend_dir=tmp_path)).get("/").status_code == 503
+
+
+def test_official_villages_and_migration(client, plan):
+    response = client.get("/api/villages/geometry")
+    assert response.status_code == 200
+    geo = response.json()
+    assert len(geo["features"]) == 456
+    assert len({f["properties"]["id"] for f in geo["features"]}) == 456
+    migrated = client.post("/api/plans/migrate", json=plan).json()
+    assert migrated["version"] == 2 and migrated["unit"] == "village"
+    assert len(migrated["assignments"]) == 456
+    result = client.post("/api/plans/validate", json=migrated)
+    assert result.status_code == 200
+    assert result.json()["checks"]["connected"]
+    assert result.json()["checks"]["complete"]
+    assert result.json()["checks"]["method"] == "source-shared-boundary-over-0.1m"
+    key = geo["features"][0]["properties"]["id"]
+    migrated["assignments"][key] = 0
+    assert client.post("/api/plans/validate", json=migrated).json()["checks"]["unassigned"] == [key]
+    migrated["dataset_version"] = "old-dataset"
+    assert client.post("/api/plans/validate", json=migrated).status_code == 422
+
+
+def test_village_wrong_ids_and_value_types(client, plan):
+    migrated = client.post("/api/plans/migrate", json=plan).json()
+    key = next(iter(migrated["assignments"]))
+    migrated["assignments"][key] = True
+    assert client.post("/api/plans/validate", json=migrated).status_code == 422
+    migrated["assignments"].pop(key)
+    assert client.post("/api/plans/validate", json=migrated).status_code == 422
+
+
+def test_missing_village_data(tmp_path):
+    client = TestClient(create_app(village_path=tmp_path / "missing.json"))
+    assert client.get("/api/villages/geometry").status_code == 503
+    assert client.get("/api/ready").status_code == 503

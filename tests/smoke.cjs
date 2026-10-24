@@ -34,6 +34,13 @@ class Element {
   click() {
     this.onclick?.();
   }
+  addEventListener(name, fn) {
+    this["on" + name] = fn;
+  }
+  setPointerCapture() {}
+  getBoundingClientRect() {
+    return { width: 760 };
+  }
   showModal() {}
   close() {}
 }
@@ -48,7 +55,8 @@ const els = {},
     return nodes;
   },
   doc = {
-    getElementById: (id) => els[id] || (els[id] = new Element()),
+    getElementById: (id) =>
+      all().find((e) => e.id === id) || els[id] || (els[id] = new Element()),
     createElement: (t) => new Element(t),
     createElementNS: (_, t) => new Element(t),
     querySelectorAll: (s) =>
@@ -58,10 +66,11 @@ const els = {},
           : e.className === "district-sub",
       ),
   };
-const storage = new Map();
+const storage = new Map(),
+  requests = [];
 let copied = "";
 const apiMode = process.argv.includes("--api");
-const requests = [];
+const catalog = JSON.parse(fs.readFileSync("dist/taipei-villages.json"));
 const ctx = vm.createContext({
   DISTRICT_API: apiMode ? "/api" : "",
   document: doc,
@@ -70,34 +79,17 @@ const ctx = vm.createContext({
     return {
       ok: true,
       json: async () =>
-        url.endsWith("/current")
-          ? {
-              council_term: 14,
-              assignments: Object.fromEntries(
-                [
-                  "北投區",
-                  "士林區",
-                  "內湖區",
-                  "南港區",
-                  "松山區",
-                  "信義區",
-                  "中山區",
-                  "大同區",
-                  "中正區",
-                  "萬華區",
-                  "大安區",
-                  "文山區",
-                ].map((n, i) => [n, Math.floor(i / 2) + 1]),
-              ),
-              seats: [12, 9, 9, 8, 8, 13],
-            }
-          : url.endsWith("/validate")
-            ? { plan: JSON.parse(options.body) }
-            : JSON.parse(fs.readFileSync("dist/taipei.json")),
+        options ? { plan: JSON.parse(options.body) } : catalog,
     };
   },
   location: { origin: "https://example.test", pathname: "/", hash: "" },
-  navigator: { clipboard: { writeText: async (s) => (copied = s) } },
+  navigator: {
+    clipboard: {
+      writeText: async (s) => {
+        copied = s;
+      },
+    },
+  },
   localStorage: {
     setItem: (k, v) => storage.set(k, v),
     getItem: (k) => storage.get(k),
@@ -113,65 +105,115 @@ const run = (s) => vm.runInContext(s, ctx);
 run(fs.readFileSync("dist/app.js", "utf8"));
 setImmediate(async () => {
   try {
-    assert.equal(run("geo.features.length"), 12);
-    assert.deepEqual(
-      requests,
-      apiMode
-        ? ["/api/districts/current", "/api/districts/geometry"]
-        : ["./taipei.json"],
-    );
-    if (apiMode) {
-      const imported = run("JSON.stringify(state)");
-      await els.file.onchange({
-        target: {
-          files: [{ size: imported.length, text: async () => imported }],
-          value: "plan.json",
-        },
-      });
-      assert.ok(requests.includes("/api/plans/validate"));
-    }
-    assert.equal(run("names.every(n=>adj[n].size>0)"), true);
-    assert.equal(run("components(names)"), 1);
-    assert.equal(doc.querySelectorAll("path").length, 12);
-    assert.equal(run('membersFor(1,baseline).join(",")'), "北投區,士林區");
-    assert.equal(run("seats.reduce((a,b)=>a+b,0)"), 59);
-    run("setMode('edit'); selected=2; activate('北投區')");
-    assert.equal(run("state.assignments['北投區']"), 2);
-    assert.equal(run("components(membersFor(2,state.assignments))"), 2);
+    assert.equal(run("geo.features.length"), 456);
+    assert.equal(doc.querySelectorAll("path").length, 456);
+    assert.deepEqual(requests, [
+      apiMode ? "/api/villages/geometry" : "./taipei-villages.json",
+    ]);
+    assert.equal(run("components(unitIds)"), 1);
+    assert.equal(run("state.version"), 2);
+    const first = run("unitIds[0]");
+    const original = run(`baseline['${first}']`);
+    const target = original === 1 ? 2 : 1;
+    run(`setMode('edit');selected=${target};activate('${first}')`);
+    assert.equal(run(`state.assignments['${first}']`), target);
     els.undo.click();
-    assert.equal(run("state.assignments['北投區']"), 1);
+    assert.equal(run(`state.assignments['${first}']`), original);
     els.redo.click();
-    assert.equal(run("state.assignments['北投區']"), 2);
-    els.erase.click();
-    run("activate('北投區')");
-    assert.equal(run("state.assignments['北投區']"), 0);
-    els.add.click();
-    assert.equal(run("state.count"), 7);
-    run("activate('北投區')");
-    assert.equal(run("state.assignments['北投區']"), 7);
-    els.remove.click();
-    assert.equal(run("state.count"), 6);
-    assert.equal(run("state.assignments['北投區']"), 0);
-    els.save.click();
-    run("activate('士林區')");
-    els.load.click();
-    assert.equal(run("state.assignments['士林區']"), 1);
-    await els.share.onclick();
-    assert.ok(copied.startsWith("https://example.test/#plan="));
-    assert.equal(
-      JSON.parse(decodeURIComponent(copied.split("#plan=")[1])).count,
-      6,
+    assert.equal(run(`state.assignments['${first}']`), target);
+    // A brush stroke touching two villages is one undo operation.
+    const second = run("unitIds[1]");
+    run(
+      "state.assignments={...baseline};history=[];future=[];selected=12;erase=false",
     );
-    assert.throws(() => run("validate({...state, count:99})"));
-    assert.throws(() => run("validate({...state, assignments:{}})"));
+    run(`startStroke({button:0,pointerId:1,clientX:0,clientY:0,preventDefault(){}},'${first}')`);
+    doc.elementFromPoint = () => ({dataset:{name:second}});
+    els.map.onpointermove({pointerId:1,clientX:1,clientY:1});
+    els.map.onpointerup();
+    assert.equal(run("history.length"), 1);
+    assert.equal(run(`state.assignments['${second}']`), 12);
+    els.undo.click();
+    assert.equal(run(`state.assignments['${first}']`), original);
+    els["town-filter"].value = "北投區";
+    els["town-filter"].onchange();
+    run("selected=3;erase=false");
+    els["assign-town"].click();
+    assert.equal(
+      run(
+        "unitIds.filter(id=>units.get(id).town==='北投區'&&state.assignments[id]===3).length",
+      ),
+      42,
+    );
+    els.undo.click();
+    assert.equal(
+      run(
+        "unitIds.filter(id=>units.get(id).town==='北投區'&&state.assignments[id]===1).length",
+      ),
+      42,
+    );
+    els["village-search"].value = "龍福里";
+    els["town-filter"].value = "";
+    els["village-search"].oninput();
+    assert.ok(els["search-count"].textContent.startsWith("1 里"));
+    run(`focusVillage('${first}')`);
+    assert.equal(run("zoom"), 6);
+    assert.ok(
+      doc.getElementById("map-layer").attrs.transform.includes("scale(6)"),
+    );
+    run("state.name='測試~分享方案'");
+    await els.share.onclick();
+    assert.ok(copied.length < 1200);
+    assert.ok(copied.includes("#v2="));
+    assert.equal(
+      run(
+        `readShare(${JSON.stringify(copied.slice(copied.indexOf("#")))}).name`,
+      ),
+      "測試~分享方案",
+    );
+    assert.equal(
+      run(
+        `JSON.stringify(readShare(${JSON.stringify(copied.slice(copied.indexOf("#")))}).assignments)===JSON.stringify(state.assignments)`,
+      ),
+      true,
+    );
+    const legacy = {
+      version: 1,
+      city: "臺北市",
+      unit: "district",
+      name: "舊方案",
+      count: 6,
+      assignments: run("({...districtBaseline})"),
+    };
+    assert.equal(run(`validate(${JSON.stringify(legacy)}).version`), 2);
+    assert.equal(
+      run(
+        `Object.keys(validate(${JSON.stringify(legacy)}).assignments).length`,
+      ),
+      456,
+    );
+    storage.set("taipei-plan-v1", JSON.stringify(legacy));
+    els.load.click();
+    assert.equal(run("state.name"), "舊方案");
+    els.save.click();
+    assert.ok(storage.has("taipei-plan-v2"));
+    const imported = run("JSON.stringify(state)");
+    await els.file.onchange({
+      target: {
+        files: [{ size: imported.length, text: async () => imported }],
+        value: "plan.json",
+      },
+    });
+    if (apiMode) assert.ok(requests.includes("/api/plans/validate"));
+    assert.throws(() => run("validate({...state,dataset_version:'wrong'})"));
+    assert.throws(() => run("validate({...state,assignments:{}})"));
+    assert.throws(() => run("validate({...state,count:true})"));
     run("setMode('current')");
-    assert.equal(run("baseline['北投區']"), 1);
     assert.equal(els["editor-tools"].hidden, true);
     console.log(
-      "PASS: geometry, adjacency, current map, assignments, disconnected detection, erase, undo/redo, add/remove, save/load, share round trip, invalid imports, mode isolation.",
+      `PASS (${apiMode ? "FastAPI" : "static"}): 456 villages, brush undo, batch assignment, search, focus, v1 migration, v2 save/import/share, dataset validation.`,
     );
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     process.exitCode = 1;
   }
 });

@@ -14,7 +14,7 @@ npm run build
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-從儲存庫根目錄執行，保留 `backend/`、`data/source.json`、產生的 `data/taipei.json` 與 `dist/`。對外服務應由主機提供 HTTPS；`--reload` 僅供開發使用。健康探針為 `/api/health`，圖資就緒探針為 `/api/ready`；前端是否建置可另以 `/` 檢查。
+從儲存庫根目錄執行，保留 `backend/`、`data/villages-source.json`、`data/taipei-villages.json`、`data/taipei-districts.json` 與 `dist/`。對外服務應由主機提供 HTTPS；`--reload` 僅供開發使用。健康探針為 `/api/health`，圖資就緒探針為 `/api/ready`；前端是否建置可另以 `/` 檢查。
 
 圖資可由 `DISTRICT_DATA_PATH` 指定絕對檔案路徑。API 不需要資料庫或機密環境變數。後端不持久儲存方案；未來若加入雲端儲存，需另設認證與存取控制。
 
@@ -33,7 +33,7 @@ npm test
 
 把 `dist/` 的內容上傳到靜態主機即可；入口為 `index.html`。網站使用相對資源路徑，可放在網域根目錄或子路徑。建議啟用 HTTPS，讓複製分享連結可使用 Clipboard API。無需環境密鑰、帳號或資料庫。
 
-第三方圖資授權鏈未確認前，請先確認使用與公開散布權限；建置成功不代表資料授權已完成審查。CI 只執行驗證，不自動公開部署網站或發布含圖資的建置產物。
+目前官方里界已依政府資料開放授權條款第 1 版使用；公開散布時保留 THIRD_PARTY_NOTICES.md 中的出處與修改說明。CI 只執行驗證，不自動公開部署網站或發布含圖資的建置產物。
 
 ## GitHub Pages
 

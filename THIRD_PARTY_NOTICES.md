@@ -4,15 +4,21 @@
 
 本儲存庫自行開發的程式碼與文件採根目錄 LICENSE 所載 MIT 授權。沒有使用前端套件、網路字型或外部圖片。Node.js 是前端開發工具。Python 後端使用 FastAPI、Uvicorn、Pydantic，以及測試用 pytest／HTTPX；由套件管理器安裝，各自依其套件所附授權使用，不適用本專案的 MIT 再授權。版本範圍見 pyproject.toml。
 
-## 歷史行政區圖資
+## 官方里界資料
 
-- 來源：ronnywang/twgeojson，https://github.com/ronnywang/twgeojson
-- 檔案：twtown2010.3.json；固定版本與 SHA-256 見 data/source.json。
-- 上游標示原始來源：內政部國土資訊系統社會經濟資料庫共通平台，民國 101 年資料。
-- 處理：依 county = 臺北市擷取 12 個行政區，不變更座標。
-- 授權狀態：截至 2026-10-24，未在上游儲存庫找到明確授權檔，原始政府資料與此轉製版本的授權鏈尚待確認。公開可下載不等同任意再授權。
+- 提供者：臺北市政府民政局。
+- 資料集：https://data.taipei/dataset/detail?id=6b17b31d-4e16-495e-95b1-9fd1f47c80d8
+- 政府資料目錄與授權宣告：https://data.gov.tw/dataset/121163
+- 授權：政府資料開放授權條款第 1 版（OGDL-Taiwan-1.0），https://data.gov.tw/license 。
+- 原始資源與 SHA-256：data/villages-source.json。
+- 衍生檔：data/taipei-villages.json（456 里）、data/taipei-districts.json（各里融合後 12 區）。
+- 修改：解析 SHP UTF-8 屬性，EPSG:3826 轉換至 EPSG:4326，擷取官方里代碼及名稱，附加代表點與共邊鄰接；未簡化里界。
 
-因此本公開儲存庫不收錄該 GeoJSON，只提供可重現的下載與擷取程式。下載後的圖資不適用本專案 MIT 授權。自行使用或再散布圖資前，須確認相應資料授權。此處也不將其他較新政府資料集的授權追溯套用到歷史檔案。
+使用及再散布請保留提供者、來源及修改說明。這些圖資適用上述政府資料授權，並非本專案 MIT 授權。資料無法保證沒有錯誤，也不表示政府背書本工具。
+
+0.1／0.2 版使用過的 ronnywang/twgeojson 歷史圖資現已取代，不再下載或隨新版發布。其舊來源紀錄保留於 data/source.json 供歷史查核，沒有追溯變更其授權。
+
+重製圖資所用 pyshp、pyproj、Shapely 及其依賴由 Python 套件管理器安裝，各依原有授權使用；不再授權成專案 MIT。
 
 ## 參考與事實資料
 

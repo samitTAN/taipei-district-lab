@@ -15,4 +15,8 @@ await mkdir(resolve(root, "dist"));
 for (const name of ["index.html", "app.js", "style.css"])
   await cp(resolve(root, "src", name), resolve(root, "dist", name));
 await cp(resolve(root, "data/taipei.json"), resolve(root, "dist/taipei.json"));
-console.log("Built static website in dist/.");
+await cp(
+  resolve(root, "data/taipei-villages.json"),
+  resolve(root, "dist/taipei-villages.json"),
+);
+console.log("Built village editor in dist/.");

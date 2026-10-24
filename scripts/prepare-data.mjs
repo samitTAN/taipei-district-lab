@@ -1,47 +1,30 @@
-import { readFile, mkdir, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 const root = fileURLToPath(new URL("../", import.meta.url));
-const source = JSON.parse(
-  await readFile(resolve(root, "data/source.json"), "utf8"),
-);
 try {
-  const args = process.argv.slice(2);
-  if (args.length && (args[0] !== "--source" || args.length !== 2))
-    throw new Error(
-      "Usage: npm run data:prepare -- [--source /path/to/twtown2010.3.json]",
-    );
-  let bytes;
-  if (args[0] === "--source") bytes = await readFile(resolve(args[1]));
-  else {
-    const response = await fetch(source.url, {
-      signal: AbortSignal.timeout(60000),
-    });
-    if (!response.ok)
-      throw new Error(`Download failed: HTTP ${response.status}`);
-    bytes = Buffer.from(await response.arrayBuffer());
-  }
-  if (createHash("sha256").update(bytes).digest("hex") !== source.sha256)
-    throw new Error(
-      "Source checksum mismatch. Review provenance before updating data/source.json.",
-    );
-  const input = JSON.parse(bytes.toString("utf8"));
-  const features = input.features.filter(
-    (f) => f.properties.county === source.filter.county,
+  const data = JSON.parse(
+    await readFile(resolve(root, "data/taipei-villages.json"), "utf8"),
   );
+  const source = JSON.parse(
+    await readFile(resolve(root, "data/villages-source.json"), "utf8"),
+  );
+  const ids = new Set(data.features.map((f) => f.properties.id));
   if (
-    features.length !== source.expected_features ||
-    new Set(features.map((f) => f.properties.town)).size !== 12
+    data.dataset_version !== source.id ||
+    data.features.length !== 456 ||
+    ids.size !== 456 ||
+    new Set(data.features.map((f) => f.properties.town)).size !== 12
   )
-    throw new Error("Unexpected Taipei district coverage.");
-  await mkdir(resolve(root, "data"), { recursive: true });
-  await writeFile(
-    resolve(root, "data/taipei.json"),
-    JSON.stringify({ type: "FeatureCollection", features }),
-  );
+    throw Error("Official village data coverage/version mismatch");
+  for (const f of data.features) {
+    if (!f.properties.neighbors.every((id) => ids.has(id)))
+      throw Error("Invalid village neighbor ID");
+  }
+  const districts = await readFile(resolve(root, "data/taipei-districts.json"));
+  await writeFile(resolve(root, "data/taipei.json"), districts);
   console.log(
-    "Prepared 12 legacy Taipei district features. See docs/DATA.md for vintage and licensing limitations.",
+    "Verified checked-in official geometry: 456 villages / 12 districts. No network download required.",
   );
 } catch (error) {
   console.error(error.message);
