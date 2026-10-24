@@ -1,4 +1,5 @@
 "use strict";
+const API = globalThis.DISTRICT_API || "";
 const $ = (id) => document.getElementById(id),
   NS = "http://www.w3.org/2000/svg";
 const names = [
@@ -279,8 +280,23 @@ function polygons(f) {
     : f.geometry.coordinates;
 }
 async function init() {
+  if (API) $("save-status").textContent = "儲存於此瀏覽器；匯入方案會送後端驗證，不持久保留。";
   try {
-    let r = await fetch("./taipei.json");
+    if (API) {
+      const configResponse = await fetch(`${API}/districts/current`);
+      if (!configResponse.ok) throw Error("無法載入選區設定");
+      const config = await configResponse.json();
+      if (
+        config.council_term !== 14 ||
+        !names.every((n) => Number.isInteger(config.assignments[n])) ||
+        config.seats.length !== 6
+      )
+        throw Error("選區設定版本不相容");
+      Object.assign(baseline, config.assignments);
+      seats.splice(0, seats.length, ...config.seats);
+      state.assignments = { ...baseline };
+    }
+    let r = await fetch(API ? `${API}/districts/geometry` : "./taipei.json");
     if (!r.ok) throw Error("圖資載入失敗");
     geo = await r.json();
     let all = geo.features.flatMap((f) => polygons(f).flat(2));
@@ -481,7 +497,16 @@ $("file").onchange = async (e) => {
   if (!f) return;
   try {
     if (f.size > 100000) throw Error("檔案過大，請選擇本工具匯出的方案。");
-    const s = validate(JSON.parse(await f.text()));
+    let s = validate(JSON.parse(await f.text()));
+    if (API) {
+      const response = await fetch(`${API}/plans/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(s),
+      });
+      if (!response.ok) throw Error("後端無法驗證方案，請檢查資料與服務狀態。");
+      s = validate((await response.json()).plan);
+    }
     change(() => {
       state = s;
       selected = 1;

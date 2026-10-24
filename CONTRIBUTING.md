@@ -5,9 +5,9 @@
 ## 開發流程
 
 1. Fork 儲存庫並建立分支，例如 `git switch -c feat/village-search`。
-2. 使用 Node.js 22 或 24，依 README 執行 `npm ci`、資料準備及建置。
+2. 使用 Python 3.10 以上與 Node.js 22 或 24，依 README 執行 `npm ci`、資料準備及建置。
 3. 修改 `src/`，不要直接修改產生的 `dist/`。
-4. 執行 `npm run check`、`npm run build`、`npm test`。
+4. 執行 `npm run check`、`npm run build`、`npm test` 與 `python -m pytest`。
 5. 以桌面及手機尺寸實際操作，檢查鍵盤操作、對比與錯誤提示。
 6. 開 Pull Request，說明解決的問題、使用者看見的行為及驗證結果；介面變更附截圖。
 

@@ -1,5 +1,26 @@
 # 部署
 
+## Python FastAPI 完整部署（建議）
+
+在支援 Python 3.10 以上的 VM 或 ASGI 主機執行：
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install .
+npm ci
+npm run data:prepare
+npm run build
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+從儲存庫根目錄執行，保留 `backend/`、`data/source.json`、產生的 `data/taipei.json` 與 `dist/`。對外服務應由主機提供 HTTPS；`--reload` 僅供開發使用。健康探針為 `/api/health`，圖資就緒探針為 `/api/ready`；前端是否建置可另以 `/` 檢查。
+
+圖資可由 `DISTRICT_DATA_PATH` 指定絕對檔案路徑。API 不需要資料庫或機密環境變數。後端不持久儲存方案；未來若加入雲端儲存，需另設認證與存取控制。
+
+既有 Sites 部署為 Cloudflare 靜態網站，不能直接執行此 Python ASGI 程序；本次變更更新 GitHub 原始碼，尚未把 FastAPI 部署到新的 Python 主機。原線上展示維持靜態版本。
+
+
 ## 一般靜態主機
 
 ```sh

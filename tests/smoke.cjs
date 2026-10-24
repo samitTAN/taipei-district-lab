@@ -60,12 +60,42 @@ const els = {},
   };
 const storage = new Map();
 let copied = "";
+const apiMode = process.argv.includes("--api");
+const requests = [];
 const ctx = vm.createContext({
+  DISTRICT_API: apiMode ? "/api" : "",
   document: doc,
-  fetch: async () => ({
-    ok: true,
-    json: async () => JSON.parse(fs.readFileSync("dist/taipei.json")),
-  }),
+  fetch: async (url, options) => {
+    requests.push(url);
+    return {
+      ok: true,
+      json: async () =>
+        url.endsWith("/current")
+          ? {
+              council_term: 14,
+              assignments: Object.fromEntries(
+                [
+                  "北投區",
+                  "士林區",
+                  "內湖區",
+                  "南港區",
+                  "松山區",
+                  "信義區",
+                  "中山區",
+                  "大同區",
+                  "中正區",
+                  "萬華區",
+                  "大安區",
+                  "文山區",
+                ].map((n, i) => [n, Math.floor(i / 2) + 1]),
+              ),
+              seats: [12, 9, 9, 8, 8, 13],
+            }
+          : url.endsWith("/validate")
+            ? { plan: JSON.parse(options.body) }
+            : JSON.parse(fs.readFileSync("dist/taipei.json")),
+    };
+  },
   location: { origin: "https://example.test", pathname: "/", hash: "" },
   navigator: { clipboard: { writeText: async (s) => (copied = s) } },
   localStorage: {
@@ -84,6 +114,22 @@ run(fs.readFileSync("dist/app.js", "utf8"));
 setImmediate(async () => {
   try {
     assert.equal(run("geo.features.length"), 12);
+    assert.deepEqual(
+      requests,
+      apiMode
+        ? ["/api/districts/current", "/api/districts/geometry"]
+        : ["./taipei.json"],
+    );
+    if (apiMode) {
+      const imported = run("JSON.stringify(state)");
+      await els.file.onchange({
+        target: {
+          files: [{ size: imported.length, text: async () => imported }],
+          value: "plan.json",
+        },
+      });
+      assert.ok(requests.includes("/api/plans/validate"));
+    }
     assert.equal(run("names.every(n=>adj[n].size>0)"), true);
     assert.equal(run("components(names)"), 1);
     assert.equal(doc.querySelectorAll("path").length, 12);
