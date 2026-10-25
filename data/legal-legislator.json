@@ -1,0 +1,64 @@
+{
+  "id": "tw-taipei-legislator-20261024",
+  "checked_on": "2026-10-24",
+  "scope": "臺北市區域立法委員選區初檢",
+  "sources": {
+    "districts": {
+      "title": "公職人員選舉罷免法第35條",
+      "url": "https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=D0020010"
+    },
+    "delimitation": {
+      "title": "公職人員選舉罷免法第37條",
+      "url": "https://law.moj.gov.tw/LawClass/LawSingle.aspx?pcode=D0020010&flno=37"
+    },
+    "official": {
+      "title": "中選會第11屆立法委員選舉區範圍",
+      "url": "https://data.gov.tw/dataset/170247"
+    }
+  },
+  "items": [
+    {
+      "id": "coverage",
+      "title": "草案完整性",
+      "source": "districts",
+      "note": "固定台北市 8 個區域選區，各選區 1 席；檢查是否有未分配里或空選區。"
+    },
+    {
+      "id": "administrative",
+      "title": "行政區分割",
+      "source": "delimitation",
+      "note": "行政區域是法定考量之一；現行士林、松山、中正區即跨立委選區，分割行政區不自動判為違法。"
+    },
+    {
+      "id": "connectivity",
+      "title": "地理連通與交通",
+      "source": "delimitation",
+      "note": "僅檢查里界共邊；交通、河川橋梁及歷史淵源仍待審議，幾何連通不能取代法律判定。"
+    },
+    {
+      "id": "population",
+      "title": "戶籍人口與統計基準",
+      "source": "districts",
+      "note": "未接入適用基準月份戶籍人口及原住民人口扣除資料。選舉人數不是人口；無法檢查人口均衡，也不將議員規則套用於立委。"
+    },
+    {
+      "id": "seats",
+      "title": "8個單一席次選區",
+      "source": "official",
+      "note": "本版本沿用第11屆臺北市8席，每區1席；固定8個選區，不支援改變臺北市分配席次。"
+    },
+    {
+      "id": "deadline",
+      "title": "立委檢討及法定程序時程",
+      "source": "delimitation",
+      "note": "立委另有每10年檢討及送立法院同意程序。第37條規定相關人口統計及送案時點；未取得實際屆次與程序資料，無法驗證，不套用議員公告期限。"
+    },
+    {
+      "id": "authority",
+      "title": "主管機關劃分與公告程序",
+      "source": "delimitation",
+      "note": "立委選區須經中選會依法劃分、送立法院同意及公告等程序；公民草案不取代正式程序。"
+    }
+  ],
+  "limitations": "法規初檢不是合法認定；尚缺法定基準人口及正式程序資料。8席為第11屆基準；未檢查未來席次調整，不以歷史得票推算重劃後當選結果。"
+}

@@ -107,6 +107,7 @@ const ctx = vm.createContext({
   },
   console,
   URL,
+  URLSearchParams,
   Blob,
   setTimeout: () => 0,
   clearTimeout() {},
@@ -123,7 +124,7 @@ setImmediate(async () => {
       apiMode
         ? "/api/elections/2022-taipei-council-regional"
         : "./elections/2022-council.json",
-      apiMode ? "/api/legal/rules" : "./legal-rules.json",
+      apiMode ? "/api/legal/rules?office=council" : "./legal-rules.json",
     ]);
     assert.equal(run("Object.keys(electionData.stations).length"), 1755);
     els["station-number"].value = "1";

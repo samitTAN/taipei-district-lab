@@ -983,3 +983,34 @@ aside {
 #legal-version {
   color: var(--muted);
 }
+
+.office-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.office-switch select {
+  font: inherit;
+  padding: 8px;
+  border: 1px solid #cbd3c5;
+  border-radius: 8px;
+  background: #fafbf7;
+  color: #243c32;
+}
+.card-text small {
+  white-space: normal;
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .header-right .beta {
+    display: none;
+  }
+  .header-right {
+    gap: 8px;
+  }
+  .office-switch {
+    gap: 4px;
+  }
+}

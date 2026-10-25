@@ -29,3 +29,6 @@ await cp(
   resolve(root, "data/legal-rules.json"),
   resolve(root, "dist/legal-rules.json"),
 );
+
+for (const name of ["legislator-config.json", "legal-legislator.json"])
+  await cp(resolve(root, "data", name), resolve(root, "dist", name));

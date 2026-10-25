@@ -150,3 +150,10 @@ def check_village_plan(plan: VillagePlan, geojson: dict):
     return {"unassigned": missing, "empty_districts": empty, "disconnected_districts": disconnected,
             "complete": not missing and not empty, "connected": not disconnected,
             "method": "source-shared-boundary-over-0.1m", "legal_compliance_assessed": False}
+
+
+class LegislatorPlan(VillagePlan):
+    """An office-tagged plan; never silently reinterpret a council draft."""
+    version: Literal[3]
+    office: Literal["legislator"]
+    count: Annotated[StrictInt, Field(ge=8, le=8)]

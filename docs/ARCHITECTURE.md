@@ -81,3 +81,12 @@ backend/elections.py 載入已核對的公開歷史結果並組合單里／單�
 ## 法規初檢（0.5.0）
 
 backend/legal.py 接受 v1／v2 草案與可選的公告日期情境；GET /api/legal/rules 與 POST /api/legal/check 提供共用規則及結構化結果。前端在開啟選項後即時計算；修改方案、復原或重做均更新報告，不把報告狀態寫入方案格式。限制與來源見 LEGAL.md。
+
+
+## 立委模式 v3（0.6.0）
+
+`?office=legislator` 載入官方第11屆8區、各1席配置。方案為 version=3、office=legislator、unit=village，count固定8，其餘沿用v2。議員v1/v2與立委v3不互相匯入。
+
+立委本機鍵為 taipei-legislator-plan-v3，分享前綴為 ?office=legislator#v3=；切換公職先保存草案，回來按「載入已存方案」取回。
+
+GET /api/legislator/current 提供配置；POST /api/plans/validate 接受v3；GET /api/legal/rules?office=legislator 提供立委規則，POST /api/legal/check 依方案型別選擇規則。

@@ -31,3 +31,6 @@ Districtr（https://districtr.org/）為互動概念參考；未使用其原始�
 場所與地址取自 2022-08-29 公告的事實欄位：https://web.cec.gov.tw/mect/article/46783 。未複製公告電話，也未建立座標或服務範圍圖形。資料檔為 data/elections/2022-council.json；原始來源、雜湊、欄位修正及限制見 data/elections/2022-council-source.json 與 docs/ELECTIONS.md。保留此出處與加工說明，這些資料不適用程式碼 MIT 再授權。
 
 重製時使用 pdfplumber，遵循其套件授權；執行網站與 API 不需要該套件。
+
+
+2024立委選區與開票資料來源中選會；場所地址依臺北市選委會公告。出處、處理及雜湊見data/elections/2024-legislator-source.json與docs/ELECTIONS.md。資料依[政府資料開放授權條款第1版](https://data.gov.tw/license)使用，程式碼MIT不涵蓋第三方資料。

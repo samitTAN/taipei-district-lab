@@ -17,7 +17,13 @@
         ><span>台北選區實驗室<small>TAIPEI DISTRICT LAB</small></span></a
       >
       <div class="header-right">
-        <span class="beta">公民參與工具 · 第一版</span
+        <label class="office-switch"
+          >公職
+          <select id="office-select" aria-label="選擇公職版本">
+            <option value="council">市議員</option>
+            <option value="legislator">區域立委</option>
+          </select></label
+        ><span class="beta">公民參與工具 · 第一版</span
         ><button id="about">使用說明 ↗</button>
       </div>
     </header>
@@ -26,7 +32,7 @@
         <div>
           <div class="eyebrow">OUR CITY, OUR DISTRICTS</div>
           <h1>台北的界線，<span>一起想像。</span></h1>
-          <p>看懂現在的議員選區，也畫出你心中的城市。</p>
+          <p id="intro-description">看懂現在的議員選區，也畫出你心中的城市。</p>
         </div>
         <div class="intro-note">
           <span>01 / 台北市</span>
@@ -140,7 +146,7 @@
               >
               <div id="legal-options" hidden>
                 <p>列出可檢查項目與待補資料，不直接認定整體合法。</p>
-                <label class="legal-toggle"
+                <label class="legal-toggle" id="legal-deadline-label"
                   ><input id="legal-deadline" type="checkbox" />
                   另以「選區變更案」檢查公告期限</label
                 >
@@ -197,13 +203,17 @@
       >
         <div class="election-heading">
           <div>
-            <div class="eyebrow">2022 · LOCAL ELECTION RESULTS</div>
+            <div class="eyebrow" id="election-eyebrow">
+              2022 · LOCAL ELECTION RESULTS
+            </div>
             <h2 id="election-heading">里與投開票所開票結果</h2>
-            <p>2022 臺北市第 14 屆區域議員選舉 · 456 里／1,755 所</p>
+            <p id="election-description">
+              2022 臺北市第 14 屆區域議員選舉 · 456 里／1,755 所
+            </p>
           </div>
           <button id="election-download">匯出目前得票 CSV</button>
         </div>
-        <p class="election-note">
+        <p class="election-note" id="election-note">
           顯示 2022
           原選區開票結果，不隨重劃草案改變。此處不含平地、山地原住民議員選票。
         </p>
@@ -256,7 +266,7 @@
             <tbody id="election-rows"></tbody>
           </table>
         </div>
-        <p class="election-source">
+        <p class="election-source" id="election-source">
           得票率＝候選人得票 ÷ 有效票；投票率＝投票數 ÷
           選舉人數。當選標示為原選區正式結果，並非在該里／所排名的推算。<br />場所與地址依
           2022-08-29

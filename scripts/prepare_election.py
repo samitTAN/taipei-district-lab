@@ -45,8 +45,8 @@ def decoded_member(name):
         return name
 
 
-def prepare(zip_path, locations):
-    source = json.loads(SOURCE.read_text(encoding="utf-8"))
+def prepare(zip_path, locations, source_path=SOURCE):
+    source = json.loads(source_path.read_text(encoding="utf-8"))
     raw = zip_path.read_bytes()
     checksum(raw, source["sha256"])
     archive = ZipFile(io.BytesIO(raw))
@@ -59,7 +59,7 @@ def prepare(zip_path, locations):
         rows[name] = list(csv.reader(io.StringIO(content.decode("utf-8-sig"))))
     geography = json.loads((ROOT / "data/taipei-villages.json").read_text(encoding="utf-8"))
     lookup = {(f["properties"]["town"], f["properties"]["village"]): f["properties"]["id"] for f in geography["features"]}
-    base = {tuple(r[:5]): r[5].replace("糖\ue02d里", "糖蔀里") for r in rows["elbase.csv"] if r[0] == "63"}
+    base = {tuple(r[:5]): r[5].replace("糖\ue02d里", "糖蔀里").replace("糖廍里", "糖蔀里") for r in rows["elbase.csv"] if r[0] == "63"}
     parties = {r[0]: r[1] for r in rows["elpaty.csv"] if len(r) == 2}
     candidates = {}
     for r in rows["elcand.csv"]:
@@ -98,7 +98,7 @@ def prepare(zip_path, locations):
             if r[5] in stations or locations[r[5]]["town"] not in {town, "區"}:
                 raise ValueError("Station ID/location district mismatch")
             stations[r[5]] = {**record, "id": r[5], "location": {**locations[r[5]], "town": town}}
-    if len(villages) != 456 or len(stations) != 1755 or sum(map(len, candidates.values())) != 112:
+    if len(villages) != 456 or len(stations) != source.get("station_count", 1755) or sum(map(len, candidates.values())) != source.get("candidate_count", 112):
         raise ValueError("Unexpected regional election coverage")
     seen = set()
     totals = {d: [0] * len(cs) for d, cs in candidates.items()}

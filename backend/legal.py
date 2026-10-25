@@ -4,12 +4,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, field_validator, model_validator
 
-from backend.domain import Plan, VillagePlan, check_village_plan, migrate_plan
+from backend.domain import LegislatorPlan, Plan, VillagePlan, check_village_plan, migrate_plan
 
 
 class LegalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    plan: Plan | VillagePlan
+    plan: Plan | VillagePlan | LegislatorPlan
     check_deadline: StrictBool = False
     election_year: Literal[2026, 2030] = 2030
     publication_date: date | None = None
@@ -35,6 +35,8 @@ class LegalRequest(BaseModel):
 
     @model_validator(mode="after")
     def deadline_context(self):
+        if isinstance(self.plan, LegislatorPlan) and self.check_deadline:
+            raise ValueError("Legislator deadlines require the separate statutory review procedure")
         if self.check_deadline and self.publication_date is None:
             raise ValueError("Publication date required for deadline check")
         return self
@@ -42,6 +44,7 @@ class LegalRequest(BaseModel):
 
 def legal_report(request: LegalRequest, geo: dict, rules: dict) -> dict:
     plan = migrate_plan(request.plan, geo) if isinstance(request.plan, Plan) else request.plan
+    legislator = isinstance(plan, LegislatorPlan)
     checks = check_village_plan(plan, geo)
     towns = {}
     for feature in geo["features"]:
@@ -56,8 +59,8 @@ def legal_report(request: LegalRequest, geo: dict, rules: dict) -> dict:
         "coverage": "issue" if not checks["complete"] else "checked",
         "administrative": "review" if split else "checked",
         "connectivity": "review" if not checks["connected"] else "checked",
-        "population": "unknown", "seats": "unknown",
-        "deadline": "issue" if late else "checked" if request.check_deadline else "not_checked",
+        "population": "unknown", "seats": "checked" if legislator else "unknown",
+        "deadline": "review" if legislator else "issue" if late else "checked" if request.check_deadline else "not_checked",
         "authority": "review",
     }
     return {

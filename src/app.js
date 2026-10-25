@@ -1,4 +1,15 @@
 "use strict";
+const legislator =
+  new URLSearchParams(location.search || "").get("office") === "legislator";
+const office = legislator ? "legislator" : "council";
+const baselineCount = legislator ? 8 : 6;
+const storageKey = legislator ? "taipei-legislator-plan-v3" : "taipei-plan-v2";
+const electionYear = legislator ? 2024 : 2022;
+const electionFile = legislator ? "2024-legislator" : "2022-council";
+const electionId = legislator
+  ? "2024-taipei-legislator-regional"
+  : "2022-taipei-council-regional";
+let legislatorConfig;
 const API = globalThis.DISTRICT_API || "";
 const $ = (id) => document.getElementById(id),
   NS = "http://www.w3.org/2000/svg";
@@ -41,7 +52,7 @@ const colors = [
   "#a9c19c",
   "#d0a6b7",
 ];
-const seats = [12, 9, 9, 8, 8, 13];
+const seats = legislator ? Array(8).fill(1) : [12, 9, 9, 8, 8, 13];
 let state = {
     version: 1,
     city: "臺北市",
@@ -102,6 +113,9 @@ function validate(s) {
     !Number.isInteger(s.count) ||
     s.count < 1 ||
     s.count > 12 ||
+    (legislator &&
+      (s.version !== 3 || s.office !== "legislator" || s.count !== 8)) ||
+    (!legislator && s.version === 3) ||
     !s.assignments ||
     typeof s.assignments !== "object"
   )
@@ -118,7 +132,8 @@ function validate(s) {
     )
       fail();
     return {
-      version: 2,
+      version: legislator ? 3 : 2,
+      ...(legislator ? { office: "legislator" } : {}),
       city: "臺北市",
       unit: "village",
       dataset_version: geo.dataset_version,
@@ -130,7 +145,7 @@ function validate(s) {
     };
   }
   if (
-    s.version !== 2 ||
+    s.version !== (legislator ? 3 : 2) ||
     s.unit !== "village" ||
     s.dataset_version !== geo.dataset_version ||
     Object.keys(s.assignments).length !== unitIds.length ||
@@ -143,7 +158,8 @@ function validate(s) {
   )
     fail();
   return {
-    version: 2,
+    version: legislator ? 3 : 2,
+    ...(legislator ? { office: "legislator" } : {}),
     city: "臺北市",
     unit: "village",
     dataset_version: geo.dataset_version,
@@ -156,7 +172,7 @@ function validate(s) {
 }
 function shareHash(plan) {
   return (
-    "#v2=" +
+    (legislator ? "#v3=" : "#v2=") +
     [
       encodeURIComponent(plan.dataset_version),
       plan.count,
@@ -166,6 +182,8 @@ function shareHash(plan) {
   );
 }
 function readShare(hash) {
+  if (legislator ? !hash.startsWith("#v3=") : hash.startsWith("#v3="))
+    throw Error("這是另一種公職的方案，請切換議員／立委版本。");
   if (hash.startsWith("#plan="))
     return validate(JSON.parse(decodeURIComponent(hash.slice(6))));
   const parts = hash.slice(4).split("~");
@@ -176,7 +194,8 @@ function readShare(hash) {
   )
     throw Error("分享連結格式不符");
   return validate({
-    version: 2,
+    version: legislator ? 3 : 2,
+    ...(legislator ? { office: "legislator" } : {}),
     city: "臺北市",
     unit: "village",
     dataset_version: decodeURIComponent(parts[0]),
@@ -216,7 +235,7 @@ function render() {
   if (unitIds.length) searchVillages();
   let editing = mode === "edit",
     a = editing ? state.assignments : baseline,
-    count = editing ? state.count : 6;
+    count = editing ? state.count : baselineCount;
   $("current").classList.toggle("active", !editing);
   $("edit").classList.toggle("active", editing);
   $("current").setAttribute("aria-pressed", !editing);
@@ -230,11 +249,19 @@ function render() {
   $("panel-title").textContent = editing ? "畫出你的選區" : "認識現行選區";
   $("panel-desc").textContent = editing
     ? "以 456 個里為單位，重新組合台北的選區。"
-    : "六個區域選區，每個選區選出多位議員。";
+    : legislator
+      ? "八個區域選區，每個選區選出 1 位立委。"
+      : "六個區域選區，每個選區選出多位議員。";
   $("map-badge").textContent = editing
     ? "公民重劃草案 · 非官方方案"
-    : "現行配置 · 第 14 屆";
-  $("map-title").textContent = editing ? state.name : "臺北市議員區域選區";
+    : legislator
+      ? "現行配置 · 第 11 屆"
+      : "現行配置 · 第 14 屆";
+  $("map-title").textContent = editing
+    ? state.name
+    : legislator
+      ? "臺北市立法委員區域選區"
+      : "臺北市議員區域選區";
   $("map-hint").textContent = editing
     ? erase
       ? "橡皮擦：點選或拖曳取消里的分配"
@@ -245,8 +272,8 @@ function render() {
   $("plan-name").value = state.name;
   $("undo").disabled = !history.length;
   $("redo").disabled = !future.length;
-  $("add").disabled = state.count >= 12;
-  $("remove").disabled = state.count <= 1;
+  $("add").disabled = legislator || state.count >= 12;
+  $("remove").disabled = legislator || state.count <= 1;
   $("erase").setAttribute("aria-pressed", erase);
   $("districts").replaceChildren();
   for (let i = 1; i <= count; i++) {
@@ -377,6 +404,18 @@ async function init() {
     );
     if (!response.ok) throw Error("圖資載入失敗");
     geo = await response.json();
+    if (legislator) {
+      const configResponse = await fetch(
+        API ? `${API}/legislator/current` : "./legislator-config.json",
+      );
+      if (!configResponse.ok) throw Error("立委選區資料載入失敗");
+      legislatorConfig = await configResponse.json();
+      if (
+        legislatorConfig.dataset_version !== geo.dataset_version ||
+        Object.keys(legislatorConfig.assignments).length !== 456
+      )
+        throw Error("立委選區與圖資版本不符");
+    }
     if (geo.features.length !== 456 || !geo.dataset_version)
       throw Error("里界資料不完整");
     units = new Map(
@@ -390,16 +429,19 @@ async function init() {
       ]),
     );
     unitIds = [...units.keys()].sort();
-    baseline = Object.fromEntries(
-      unitIds.map((id) => [id, districtBaseline[units.get(id).town]]),
-    );
+    baseline = legislator
+      ? { ...legislatorConfig.assignments }
+      : Object.fromEntries(
+          unitIds.map((id) => [id, districtBaseline[units.get(id).town]]),
+        );
     state = {
-      version: 2,
+      version: legislator ? 3 : 2,
+      ...(legislator ? { office: "legislator" } : {}),
       city: "臺北市",
       unit: "village",
       dataset_version: geo.dataset_version,
       name: state.name,
-      count: 6,
+      count: baselineCount,
       assignments: { ...baseline },
     };
     adj = Object.fromEntries(
@@ -487,7 +529,8 @@ async function init() {
     }
     if (
       location.hash.startsWith("#plan=") ||
-      location.hash.startsWith("#v2=")
+      location.hash.startsWith("#v2=") ||
+      location.hash.startsWith("#v3=")
     ) {
       try {
         state = readShare(location.hash);
@@ -656,12 +699,14 @@ $("redo").onclick = () => {
   }
 };
 $("add").onclick = () =>
+  !legislator &&
   change(() => {
     state.count++;
     selected = state.count;
     erase = false;
   });
 $("remove").onclick = () =>
+  !legislator &&
   change(() => {
     for (const n of unitIds)
       if (state.assignments[n] === state.count) state.assignments[n] = 0;
@@ -671,7 +716,7 @@ $("remove").onclick = () =>
 $("reset").onclick = () => {
   if (confirm("要將目前草案重設為現行配置嗎？可使用復原回到原方案。"))
     change(() => {
-      state.count = 6;
+      state.count = baselineCount;
       state.assignments = { ...baseline };
       selected = 1;
       erase = false;
@@ -679,7 +724,7 @@ $("reset").onclick = () => {
 };
 $("save").onclick = () => {
   try {
-    localStorage.setItem("taipei-plan-v2", JSON.stringify(state));
+    localStorage.setItem(storageKey, JSON.stringify(state));
     $("save-status").textContent =
       "已儲存在此瀏覽器 · " + new Date().toLocaleTimeString("zh-TW");
     toast("方案已儲存至此瀏覽器");
@@ -690,8 +735,8 @@ $("save").onclick = () => {
 $("load").onclick = () => {
   try {
     let raw =
-      localStorage.getItem("taipei-plan-v2") ||
-      localStorage.getItem("taipei-plan-v1");
+      localStorage.getItem(storageKey) ||
+      (!legislator && localStorage.getItem("taipei-plan-v1"));
     if (!raw) return toast("此瀏覽器還沒有已存方案");
     let s = validate(JSON.parse(raw));
     change(() => {
@@ -745,7 +790,11 @@ $("file").onchange = async (e) => {
   }
 };
 $("share").onclick = async () => {
-  const url = location.origin + location.pathname + shareHash(state);
+  const url =
+    location.origin +
+    location.pathname +
+    (legislator ? "?office=legislator" : "") +
+    shareHash(state);
   try {
     await navigator.clipboard.writeText(url);
     toast("已複製方案連結，可分享給其他人");
@@ -807,15 +856,15 @@ async function initElections() {
   try {
     const response = await fetch(
       API
-        ? `${API}/elections/2022-taipei-council-regional`
-        : "./elections/2022-council.json",
+        ? `${API}/elections/${electionId}`
+        : `./elections/${electionFile}.json`,
     );
     if (!response.ok) throw Error("選舉資料載入失敗");
     const data = await response.json();
     if (
       data.map_dataset_version !== geo.dataset_version ||
       Object.keys(data.villages).length !== 456 ||
-      Object.keys(data.stations).length !== 1755 ||
+      Object.keys(data.stations).length !== (legislator ? 1764 : 1755) ||
       !unitIds.every((id) => data.villages[id])
     )
       throw Error("選舉資料與地圖版本不符");
@@ -842,7 +891,8 @@ function selectElectionVillage(id) {
   electionStation = "";
   if (!electionData || !electionData.villages[id]) return;
   $("election-village").value = id;
-  $("view-election").textContent = `查看${units.get(id).label}的 2022 得票 ↓`;
+  $("view-election").textContent =
+    `查看${units.get(id).label}的 ${electionYear} 得票 ↓`;
   $("election-station").replaceChildren();
   const all = document.createElement("option");
   all.value = "";
@@ -869,7 +919,7 @@ function renderElection() {
   const village = electionData.villages[electionVillage],
     label = village.town + village.village;
   $("election-status").textContent =
-    `投票日 2022-11-26 · 原第 ${record.district} 選區 · ${electionStation ? "投開票所明細" : `全里 ${village.station_ids.length} 所合計`}`;
+    `投票日 ${electionData.date} · 原第 ${record.district} 選區 · ${electionStation ? "投開票所明細" : `全里 ${village.station_ids.length} 所合計`}`;
   $("election-location").textContent = electionStation
     ? `${label} · 第 ${electionStation} 投開票所`
     : `${label} · 全里合計`;
@@ -877,7 +927,7 @@ function renderElection() {
     ? `${record.location.name}｜${record.location.town}${record.location.address}`
     : "選擇投開票所可查看場所、地址及該所得票。";
   $("station-coverage").textContent = electionStation
-    ? `公告所轄里鄰別：${record.location.coverage}（公告第 ${record.location.source_page} 頁）`
+    ? `公告所轄里鄰別：${record.location.coverage}（公告${legislator ? `ODS ${record.location.source_sheet}，第 ${record.location.source_row} 列` : `第 ${record.location.source_page} 頁`}）`
     : "";
   $("election-stats").replaceChildren();
   for (const [title, value] of [
@@ -932,10 +982,10 @@ function findStation() {
   const value = $("station-number").value.trim();
   if (!electionData) return toast("選舉資料尚未載入");
   if (!/^[0-9]{1,4}$/.test(value))
-    return toast("請輸入 1 至 1755 的投開票所編號");
+    return toast(`請輸入 1 至 ${legislator ? 1764 : 1755} 的投開票所編號`);
   const id = value.padStart(4, "0"),
     station = electionData.stations[id];
-  if (!station) return toast("找不到這個 2022 投開票所編號");
+  if (!station) return toast(`找不到這個 ${electionYear} 投開票所編號`);
   focusVillage(station.village_id);
   electionStation = id;
   $("election-station").value = id;
@@ -983,7 +1033,7 @@ $("election-download").onclick = () => {
   download(
     "\uFEFF" + csv,
     "text/csv;charset=utf-8",
-    `2022-council-${electionStation || electionVillage}.csv`,
+    `${electionFile}-${electionStation || electionVillage}.csv`,
   );
 };
 
@@ -991,7 +1041,11 @@ let legalRules = null;
 async function initLegal() {
   try {
     const response = await fetch(
-      API ? `${API}/legal/rules` : "./legal-rules.json",
+      API
+        ? `${API}/legal/rules?office=${office}`
+        : legislator
+          ? "./legal-legislator.json"
+          : "./legal-rules.json",
     );
     if (!response.ok) throw Error("法規資料載入失敗");
     legalRules = await response.json();
@@ -1024,21 +1078,27 @@ function legalReport(plan, options) {
     if (!members.length) empty.push(i);
     if (components(members) > 1) disconnected.push(i);
   }
-  const deadline = options.check_deadline
-    ? `${options.election_year - 1}-12-25`
-    : null;
-  const late = options.check_deadline && options.publication_date > deadline;
+  const deadline =
+    !legislator && options.check_deadline
+      ? `${options.election_year - 1}-12-25`
+      : null;
+  const late =
+    !legislator &&
+    options.check_deadline &&
+    options.publication_date > deadline;
   const statuses = {
     coverage: unassigned.length || empty.length ? "issue" : "checked",
     administrative: split.length ? "review" : "checked",
     connectivity: disconnected.length ? "review" : "checked",
     population: "unknown",
-    seats: "unknown",
-    deadline: late
-      ? "issue"
-      : options.check_deadline
-        ? "checked"
-        : "not_checked",
+    seats: legislator ? (plan.count === 8 ? "checked" : "issue") : "unknown",
+    deadline: legislator
+      ? "review"
+      : late
+        ? "issue"
+        : options.check_deadline
+          ? "checked"
+          : "not_checked",
     authority: "review",
   };
   return {
@@ -1075,7 +1135,7 @@ function renderLegal() {
   $("legal-date-options").hidden = !$("legal-deadline").checked;
   if (!enabled || !legalRules) return;
   const options = {
-    check_deadline: !!$("legal-deadline").checked,
+    check_deadline: !legislator && !!$("legal-deadline").checked,
     election_year: Number($("legal-year").value || 2030),
     publication_date: $("legal-publication").value,
   };
@@ -1135,4 +1195,58 @@ for (const id of [
   "legal-publication",
 ])
   $(id).onchange = renderLegal;
+$("office-select").value = office;
+$("office-select").onchange = (event) => {
+  try {
+    if (unitIds.length === 456)
+      localStorage.setItem(storageKey, JSON.stringify(state));
+  } catch {}
+  location.href =
+    location.pathname +
+    (event.target.value === "legislator" ? "?office=legislator" : "");
+};
+if (legislator) {
+  $("intro-description").textContent =
+    "看懂台北市 8 個立委選區，也畫出你的逐里重劃方案。";
+  $("current-note").replaceChildren();
+  const note = document.createElement("p");
+  note.textContent =
+    "區域立委共 8 席，各選區 1 席。原住民立委及全國不分區屬其他選票，不納入本圖重劃。";
+  $("current-note").append(note);
+  $("election-eyebrow").textContent = "2024 · LEGISLATIVE ELECTION RESULTS";
+  $("election-description").textContent =
+    "2024 臺北市第 11 屆區域立委選舉 · 456 里／1,764 所";
+  $("election-note").textContent =
+    "顯示 2024 原選區開票結果，不隨重劃草案改變；不含政黨票與原住民立委選票。";
+  $("election-source").replaceChildren();
+  const explanation = document.createElement("p");
+  explanation.textContent =
+    "得票率＝候選人得票 ÷ 有效票；投票率＝投票數 ÷ 選舉人數。當選標示為原選區正式結果。場所與地址依 2023-11-20 公告，非現今投票地點；沒有投票所座標及範圍圖。";
+  $("election-source").append(explanation);
+  for (const [title, url] of [
+    ["中選會開票資料 ↗", "https://data.gov.tw/dataset/13119"],
+    ["2024 投開票所公告 ↗", "https://web.cec.gov.tw/mect/article/46833"],
+    ["第 11 屆選區範圍 ↗", "https://data.gov.tw/dataset/170247"],
+  ]) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.textContent = title;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    $("election-source").append(a, "　");
+  }
+  $("legal-deadline").disabled = true;
+  $("legal-deadline-label").hidden = true;
+  $("view-election").textContent = "查看選取里的 2024 得票 ↓";
+  $("about").onclick = () =>
+    showDialog(
+      "立委逐里重劃",
+      "<p>台北市區域立委為 8 個單一席次選區。選擇色塊後點選或拖曳各里，也可搜尋定位、批次分配行政區及復原。</p><p>立委方案與議員方案分開儲存；切換版本會先儲存目前草案。匯入及分享不互通。</p><p>2024 歷史得票保留原選區歸屬，重劃不會改變當選人或推算新當選結果。</p>",
+    );
+  $("sources").onclick = () =>
+    showDialog(
+      "立委版本資料來源",
+      '<p>基準為中選會第 11 屆立委 8 個選區範圍，已逐一比對 456 里與 2024 開票資料。每區 1 席。地圖使用現有官方里界，並非重建 2024 歷史里界。</p><p>里界資源更新 2026-09-21，收錄期間迄日 2025-06-17。人口尚未接入；法規初檢不代表整體合法。</p><p><a href="https://data.gov.tw/dataset/170247" target="_blank" rel="noreferrer">中選會選區範圍 ↗</a> · <a href="https://data.taipei/dataset/detail?id=6b17b31d-4e16-495e-95b1-9fd1f47c80d8" target="_blank" rel="noreferrer">官方里界 ↗</a></p>',
+    );
+}
 init();

@@ -54,3 +54,22 @@ python scripts/prepare_election.py --results-zip /path/to/votedata.zip --locatio
 - GET /api/elections/2022-taipei-council-regional/stations/{station_id}：單一所結果，支援 1 或 0001。
 
 找不到 ID 回傳 404，資料檔不可用回傳 503。所有結果為公共彙整資料，沒有個人投票紀錄。
+
+
+## 2024 區域立委（0.6.0）
+
+新增2024-01-13第11屆臺北市區域立委：8區、53位候選人、456里、1,764所。不含政黨票及原住民立委票。
+
+結果採中選會votedata.zip之2024總統立委/區域立委五份CSV；場所地址依[2023-11-20公告ODS](https://web.cec.gov.tw/mect/article/46833)，保留工作表及實際列號。來源網址、雜湊與授權見data/elections/2024-legislator-source.json。
+
+[第11屆選區範圍](https://data.gov.tw/dataset/170247)逐里展開後與開票資料交叉核對：456里均唯一歸屬；士林、松山、中正區跨選區。2024糖廍里對應GIS糖蔀里，不更動幾何。使用現有官方里界，未重建2024歷史幾何。
+
+逐所→逐里→原選區候選人加總與全市統計均經對帳。當選標記及票數保留原選區口徑，不推算重劃後當選人。資料依政府資料開放授權條款第1版，非程式碼MIT。
+
+重製只需Python標準函式庫：
+
+```sh
+python scripts/prepare_legislator.py --results-zip /path/to/votedata.zip --locations-ods /path/to/2024-stations.ods --ranges-csv /path/to/legislator-ranges.csv
+```
+
+輸出2024-legislator.json及legislator-config.json。API為/api/elections/2024-taipei-legislator-regional及其/villages/{village_id}、/stations/{station_id}。/api/elections列出兩種選舉。

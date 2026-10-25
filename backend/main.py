@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from backend.legal import LegalRequest, legal_report
 from backend.elections import load_election, detail
 
-from backend.domain import BASELINE, NAMES, SEATS, Plan, adjacency, check_plan, VillagePlan, village_catalog, migrate_plan, check_village_plan
+from backend.domain import LegislatorPlan, BASELINE, NAMES, SEATS, Plan, adjacency, check_plan, VillagePlan, village_catalog, migrate_plan, check_village_plan
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,7 +22,7 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
     election_path = election_path or ROOT / "data/elections/2022-council.json"
     app = FastAPI(
         title="Taipei District Lab API",
-        version="0.5.0",
+        version="0.6.0",
         description="台北市逐里選區探索，方案檢查非法律合規認定。",
     )
 
@@ -59,7 +59,7 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
 
     @app.get("/api/health", tags=["system"])
     def health():
-        return {"status": "ok", "version": "0.5.0"}
+        return {"status": "ok", "version": "0.6.0"}
 
     @app.get("/api/ready", tags=["system"])
     def ready():
@@ -87,7 +87,7 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
         return json.loads((ROOT / "data/villages-source.json").read_text(encoding="utf-8"))
 
     @app.post("/api/plans/validate", tags=["plans"])
-    def validate_plan(plan: Plan | VillagePlan):
+    def validate_plan(plan: Plan | VillagePlan | LegislatorPlan):
         if isinstance(plan, VillagePlan):
             try:
                 return {"plan": plan.model_dump(), "checks": check_village_plan(plan, villages())}
@@ -106,7 +106,7 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
     def election_list():
         data = election()
         return [{"id": data["id"], "title": data["title"], "date": data["date"], "scope": data["scope"],
-                 "village_count": len(data["villages"]), "station_count": len(data["stations"])}]
+                 "village_count": len(data["villages"]), "station_count": len(data["stations"])} for data in [data, legislative_election()]]
 
     @app.get("/api/elections/2022-taipei-council-regional", tags=["elections"])
     def all_election_results():
@@ -129,17 +129,51 @@ def create_app(data_path: Path | None = None, frontend_dir: Path | None = None, 
             raise HTTPException(404, "Unknown station")
         return detail(data, data["stations"][station_id])
 
-    @app.get("/api/legal/rules", tags=["legal"])
-    def legal_rules():
+    @lru_cache(maxsize=1)
+    def legislative_election():
         try:
-            return json.loads((ROOT / "data/legal-rules.json").read_text(encoding="utf-8"))
+            return load_election(ROOT / "data/elections/2024-legislator.json")
+        except (OSError, ValueError, KeyError, TypeError):
+            raise HTTPException(503, "Legislator election data unavailable") from None
+
+    @app.get("/api/legislator/current", tags=["legislator"])
+    def legislative_current():
+        return json.loads((ROOT / "data/legislator-config.json").read_text(encoding="utf-8"))
+
+    @app.get("/api/elections/2024-taipei-legislator-regional", tags=["elections"])
+    def legislative_results():
+        return legislative_election()
+
+    @app.get("/api/elections/2024-taipei-legislator-regional/villages/{village_id}", tags=["elections"])
+    def legislative_village(village_id: str):
+        data = legislative_election()
+        if village_id not in data["villages"]:
+            raise HTTPException(404, "Unknown village")
+        return detail(data, data["villages"][village_id])
+
+    @app.get("/api/elections/2024-taipei-legislator-regional/stations/{station_id}", tags=["elections"])
+    def legislative_station(station_id: str):
+        data = legislative_election()
+        if not station_id.isascii() or not station_id.isdigit() or len(station_id) > 4:
+            raise HTTPException(404, "Unknown station")
+        station_id = station_id.zfill(4)
+        if station_id not in data["stations"]:
+            raise HTTPException(404, "Unknown station")
+        return detail(data, data["stations"][station_id])
+
+    @app.get("/api/legal/rules", tags=["legal"])
+    def legal_rules(office: str = "council"):
+        if office not in {"council", "legislator"}:
+            raise HTTPException(422, "Unknown office")
+        try:
+            return json.loads((ROOT / ("data/legal-legislator.json" if office == "legislator" else "data/legal-rules.json")).read_text(encoding="utf-8"))
         except (OSError, ValueError):
             raise HTTPException(503, "Legal rules unavailable") from None
 
     @app.post("/api/legal/check", tags=["legal"])
     def legal_check(request: LegalRequest):
         try:
-            return legal_report(request, villages(), legal_rules())
+            return legal_report(request, villages(), legal_rules("legislator" if isinstance(request.plan, LegislatorPlan) else "council"))
         except ValueError as error:
             raise HTTPException(422, str(error)) from None
 

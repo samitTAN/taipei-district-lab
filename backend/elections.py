@@ -5,7 +5,8 @@ from pathlib import Path
 
 def load_election(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
-    if data["id"] != "2022-taipei-council-regional" or len(data["villages"]) != 456 or len(data["stations"]) != 1755:
+    expected = {"2022-taipei-council-regional": 1755, "2024-taipei-legislator-regional": 1764}
+    if data["id"] not in expected or len(data["villages"]) != 456 or len(data["stations"]) != expected[data["id"]]:
         raise ValueError("Unexpected election coverage")
     return data
 

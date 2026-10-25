@@ -1,0 +1,62 @@
+{
+  "id": "2024-taipei-legislator-regional",
+  "publisher": "中央選舉委員會",
+  "title": "2024 臺北市第11屆區域立法委員選舉",
+  "date": "2024-01-13",
+  "scope": "regional-only; party-list and indigenous ballots excluded",
+  "url": "https://data.cec.gov.tw/%E9%81%B8%E8%88%89%E8%B3%87%E6%96%99%E5%BA%AB/votedata.zip",
+  "catalog": "https://data.gov.tw/dataset/13119",
+  "sha256": "84740535b1f4a9a8fec8ebfe8f7577889837b7639cd7f5e40ef8826c6ab2f69a",
+  "members": {
+    "elbase.csv": {
+      "path": "votedata/votedata/voteData/2024總統立委/區域立委/elbase.csv",
+      "sha256": "528991673438e22cedb2eafa35251a5b412ae99f31da1d61bae3537e8a7a5fa8"
+    },
+    "elcand.csv": {
+      "path": "votedata/votedata/voteData/2024總統立委/區域立委/elcand.csv",
+      "sha256": "c12d44a515ba13fb86f76c1c6f1e5eca379a0e5579a2e3aa0965ec42dc9cb480"
+    },
+    "elctks.csv": {
+      "path": "votedata/votedata/voteData/2024總統立委/區域立委/elctks.csv",
+      "sha256": "d855c81abf812b474cc342c6a9353b8e44c9c3effe6a4d1901a1d24fd8eabe51"
+    },
+    "elpaty.csv": {
+      "path": "votedata/votedata/voteData/2024總統立委/區域立委/elpaty.csv",
+      "sha256": "055749483ea407885b512266ff4649ef539a4b0b704fa3a27dca74f73f5e1782"
+    },
+    "elprof.csv": {
+      "path": "votedata/votedata/voteData/2024總統立委/區域立委/elprof.csv",
+      "sha256": "5ce7f33f9bb310d48b9f415a57c38d1b547c4286ed917e249b9d3ada45e107ee"
+    }
+  },
+  "locations": {
+    "url": "https://web.cec.gov.tw/api/file/281b80c6-d8f9-4029-89ce-cabe809aa009.ods",
+    "announcement": "https://web.cec.gov.tw/mect/article/46833",
+    "announcement_date": "2023-11-20",
+    "sha256": "af21153e3240d08252bd4adcef61d86f7f1f118f36fc52b3d302a2f1e22cfc96",
+    "note": "Place names and addresses from the dated announcement, not geocoded; do not treat as polling-site boundaries."
+  },
+  "license": "OGDL-Taiwan-1.0",
+  "license_url": "https://data.gov.tw/license",
+  "checked_on": "2026-10-24",
+  "village_join": "2024 official town + village names joined to official map; cross-checked with official 11th legislative constituency ranges",
+  "normalizations": [
+    {
+      "town": "萬華區",
+      "election_raw": "糖廍里",
+      "map_raw": "糖蔀里",
+      "display": "糖廍里",
+      "reference": "https://whdo.gov.taipei/News_Content.aspx?n=398B18EC2B34D6FC&s=1E6DF91952ACD47B",
+      "method": "Explicit reviewed alias; join to existing official map ID, do not change geometry"
+    }
+  ],
+  "station_count": 1764,
+  "candidate_count": 53,
+  "ranges": {
+    "catalog": "https://data.gov.tw/dataset/170247",
+    "url": "https://data.cec.gov.tw/第11屆立法委員選舉區範圍/立法委員選舉區範圍.csv",
+    "sha256": "8141cc1cf12b9afb4cf8d10d44ee992bf33c4c6c5090e79a71a08dc0bb8ce1ba",
+    "checked_on": "2026-10-24",
+    "license": "OGDL-Taiwan-1.0"
+  }
+}

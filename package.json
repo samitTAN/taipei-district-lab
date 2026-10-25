@@ -1,8 +1,8 @@
 {
   "name": "taipei-district-lab",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "Open-source civic mapping tool for exploring Taipei City Council districts",
+  "description": "Open-source civic mapping tool for Taipei council and legislative districts",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -13,7 +13,7 @@
     "dev": "python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000",
     "start": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000",
     "check": "node --check src/app.js && node --check scripts/prepare-data.mjs && node --check scripts/build.mjs && node --check scripts/serve.mjs",
-    "test": "node tests/smoke.cjs && node tests/smoke.cjs --api",
+    "test": "node tests/smoke.cjs && node tests/smoke.cjs --api && node tests/legislator-smoke.cjs && node tests/legislator-smoke.cjs --api",
     "preview:static": "node scripts/serve.mjs"
   },
   "repository": {
